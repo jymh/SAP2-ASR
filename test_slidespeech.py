@@ -1,5 +1,5 @@
 import os
-# os.environ['CUDA_VISIBLE_DEVICES'] = '5'
+os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 import codecs
 from pathlib import Path
 import json
@@ -110,14 +110,27 @@ if __name__=="__main__":
     # model_path = pathlib.Path("/data/ymrong/output/slidespeech_30k_lora/qwen2-audio-7b/v0-20241017-183855/checkpoint-449")
     # eval_dataset = "data/slidespeech_30k_en_instruction/test.json"
     
+    model_path = pathlib.Path("/data/ymrong/output/slidespeech_30k_lora_en_instruction/qwen2-audio-7b-instruct/v0-20241018-154420/checkpoint-449")
+    eval_dataset = "data/slidespeech_30k_en_instruction/test.json"
+    
     # model_path = pathlib.Path("/data/ymrong/output/slidespeech_L95_lora/qwen2-audio-7b/v1-20241017-215929/checkpoint-6689")
     # eval_dataset = "data/slidespeech_L95_en_instruction/test.json"
     
     # model_path = pathlib.Path("/data/ymrong/output/slidespeech_30k_filter_lora_en_instruction/qwen2-audio-7b-instruct/v6-20241021-112621/checkpoint-449")
     # eval_dataset = "data/slidespeech_30k_filter_en_instruction/test.json"
     
-    model_path = pathlib.Path("/data/ymrong/output/slidespeech_30k_train_filterkeywords_lora_en_instruction/qwen2-audio-7b-instruct/v1-20241021-205017/checkpoint-674")
-    eval_dataset = "data/slidespeech_30k_filtered_train_en_instruction/test.json"
+    # model_path = pathlib.Path("/data/ymrong/output/slidespeech_30k_train_filterkeywords_lora/qwen2-audio-7b-instruct/v0-20241023-181414/checkpoint-808")
+    # eval_dataset = "data/slidespeech_30k_filtered_train/test.json"
+    
+    # 这个好像有问题，测试集处理错了
+    # model_path = pathlib.Path("/data/ymrong/output/slidespeech_30k_train_filterkeywords_lora/qwen2-audio-7b-instruct/v1-20241023-201622/checkpoint-808")
+    # eval_dataset = "data/slidespeech_30k_filtered_train/test.json"   
+    
+    # model_path = pathlib.Path("/data/ymrong/output/slidespeech_30k_train_filterkeywords_lora_en_instruction/qwen2-audio-7b-instruct/v2-20241024-110551/checkpoint-1616")
+    # eval_dataset = "data/slidespeech_30k_filtered_train_en_instruction/test.json"
+    
+    # model_path = pathlib.Path("/data/ymrong/output/slidespeech_30k_train_filterkeywords_lora/qwen2-audio-7b-instruct/v4-20241024-134853/checkpoint-1616")
+    # eval_dataset = "data/slidespeech_30k_filtered_train/test.json"
     
     if use_lora:
         original_ckpt_dir = model_path
