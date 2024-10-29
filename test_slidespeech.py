@@ -1,5 +1,5 @@
 import os
-os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+os.environ['CUDA_VISIBLE_DEVICES'] = '4'
 import codecs
 from pathlib import Path
 import json
@@ -84,6 +84,31 @@ def convert_jsonl_to_txt(result_file):
     hyp_writer.close()
     ref_writer.close()
     
+def convert_jsonl_to_txt_multitask(result_file):
+    if isinstance(result_file, str):
+        result_file = pathlib.Path(result_file)
+    result_dir = result_file.parents[0]
+        
+    audio_paths = []
+    hyps = []
+    refs = []
+    with result_file.open(mode='rt', encoding='utf8') as f:
+        for line in f.readlines():
+            data_item = json.loads(line)
+            audio_paths.append(re.match(pattern=r"<audio>(.*?)</audio>", string=data_item["query"]).group(1))
+            hyps.append(re.search(pattern=r'Transcription: (.+)', string=data_item["response"]).group(1))
+            refs.append(re.search(pattern=r'Transcription: (.+)', string=data_item["label"]).group(1))
+
+    
+    hyp_writer =  codecs.open(str(result_dir / "test.hyp"), mode='w', encoding='utf8')
+    ref_writer = codecs.open(str(result_dir / "test.ref"), mode='w', encoding='utf8')
+    for i, item in enumerate(audio_paths):
+        hyp_writer.write(f'{item} {hyps[i]}' + '\n')
+        ref_writer.write(f'{item} {refs[i]}' + '\n')
+        
+    hyp_writer.close()
+    ref_writer.close()
+    
     
 if __name__=="__main__":
     # result_file = pathlib.Path("/data/ymrong/output/qwen2-audio-7b-instruct/v11-20241011-105159/checkpoint-1450/infer_result/20241011-154337.jsonl")
@@ -110,8 +135,8 @@ if __name__=="__main__":
     # model_path = pathlib.Path("/data/ymrong/output/slidespeech_30k_lora/qwen2-audio-7b/v0-20241017-183855/checkpoint-449")
     # eval_dataset = "data/slidespeech_30k_en_instruction/test.json"
     
-    model_path = pathlib.Path("/data/ymrong/output/slidespeech_30k_lora_en_instruction/qwen2-audio-7b-instruct/v0-20241018-154420/checkpoint-449")
-    eval_dataset = "data/slidespeech_30k_en_instruction/test.json"
+    # model_path = pathlib.Path("/data/ymrong/output/slidespeech_30k_lora_en_instruction/qwen2-audio-7b-instruct/v0-20241018-154420/checkpoint-449")
+    # eval_dataset = "data/slidespeech_30k_en_instruction/test.json"
     
     # model_path = pathlib.Path("/data/ymrong/output/slidespeech_L95_lora/qwen2-audio-7b/v1-20241017-215929/checkpoint-6689")
     # eval_dataset = "data/slidespeech_L95_en_instruction/test.json"
@@ -132,6 +157,9 @@ if __name__=="__main__":
     # model_path = pathlib.Path("/data/ymrong/output/slidespeech_30k_train_filterkeywords_lora/qwen2-audio-7b-instruct/v4-20241024-134853/checkpoint-1616")
     # eval_dataset = "data/slidespeech_30k_filtered_train/test.json"
     
+    model_path = pathlib.Path("/data/ymrong/output/slidespeech_30k_lora_multitask_train_en_instruction/qwen2-audio-7b-instruct/v3-20241028-162459/checkpoint-1346")
+    eval_dataset = "data/slidespeech_30k_multitask_train_en_instruction/test.json"
+    
     if use_lora:
         original_ckpt_dir = model_path
         
@@ -147,10 +175,11 @@ if __name__=="__main__":
     
     # evaluate(ckpt_dir=ckpt_dir)
     
-    subprocess.run(["swift", "infer", "--ckpt_dir", str(ckpt_dir), "--val_dataset", eval_dataset])
+    # subprocess.run(["swift", "infer", "--ckpt_dir", str(ckpt_dir), "--val_dataset", eval_dataset])
     
     result_file = next((Path(ckpt_dir) / "infer_result").iterdir())
-    convert_jsonl_to_txt(result_file)
+    # convert_jsonl_to_txt(result_file)
+    convert_jsonl_to_txt_multitask(result_file)
 
     hyp_file = result_file.parents[0] / "test.hyp"
     ref_file = result_file.parents[0] / "test.ref"

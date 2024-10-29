@@ -69,13 +69,14 @@
 #     --deepspeed default-zero2
 
 # # 30k lora multitask
-NPROC_PER_NODE=5 CUDA_VISIBLE_DEVICES=0,1,2,3,4 swift sft \
+NPROC_PER_NODE=3 CUDA_VISIBLE_DEVICES=2,3,4 swift sft \
     --model_id_or_path "/data/ymrong/models/qwen2-audio-instruct"  \
     --model_type qwen2-audio-7b-instruct \
     --dataset "/data/ymrong/Projects/ms-swift/data/slidespeech_30k_multitask_train_en_instruction/train.json" \
     --val_dataset "/data/ymrong/Projects/ms-swift/data/slidespeech_30k_multitask_train_en_instruction/dev.json" \
+    --eval_steps 500 \
     --num_train_epochs 1 \
-    --batch_size 8 \
+    --batch_size 4 \
     --output_dir "/data/ymrong/output/slidespeech_30k_lora_multitask_train_en_instruction" \
     --sft_type lora \
     --deepspeed default-zero2
