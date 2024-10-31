@@ -1,5 +1,5 @@
 import os
-os.environ['CUDA_VISIBLE_DEVICES'] = '4'
+os.environ['CUDA_VISIBLE_DEVICES'] = '1'
 import codecs
 from pathlib import Path
 import json
@@ -152,13 +152,17 @@ if __name__=="__main__":
     # eval_dataset = "data/slidespeech_30k_filtered_train/test.json"   
     
     # model_path = pathlib.Path("/data/ymrong/output/slidespeech_30k_train_filterkeywords_lora_en_instruction/qwen2-audio-7b-instruct/v2-20241024-110551/checkpoint-1616")
-    # eval_dataset = "data/slidespeech_30k_filtered_train_en_instruction/test.json"
+    # # eval_dataset = "data/slidespeech_30k_filtered_train_en_instruction/test.json"
+    # eval_dataset = "data/slidespeech_30k_filtered_train_en_instruction/test_from_filter.json"
     
     # model_path = pathlib.Path("/data/ymrong/output/slidespeech_30k_train_filterkeywords_lora/qwen2-audio-7b-instruct/v4-20241024-134853/checkpoint-1616")
     # eval_dataset = "data/slidespeech_30k_filtered_train/test.json"
     
-    model_path = pathlib.Path("/data/ymrong/output/slidespeech_30k_lora_multitask_train_en_instruction/qwen2-audio-7b-instruct/v3-20241028-162459/checkpoint-1346")
-    eval_dataset = "data/slidespeech_30k_multitask_train_en_instruction/test.json"
+    # model_path = pathlib.Path("/data/ymrong/output/slidespeech_30k_lora_multitask_train_en_instruction/qwen2-audio-7b-instruct/v3-20241028-162459/checkpoint-1346")
+    # eval_dataset = "data/slidespeech_30k_multitask_train_en_instruction/test.json"
+    
+    model_path = pathlib.Path("/data/ymrong/output/slidespeech_L95_filter_lora_en_instruction/qwen2-audio-7b-instruct/v3-20241030-172433/checkpoint-10033")
+    eval_dataset = "/data/ymrong/Projects/ms-swift/data/slidespeech_L95_filter_en_instruction/test.json"
     
     if use_lora:
         original_ckpt_dir = model_path
@@ -175,11 +179,11 @@ if __name__=="__main__":
     
     # evaluate(ckpt_dir=ckpt_dir)
     
-    # subprocess.run(["swift", "infer", "--ckpt_dir", str(ckpt_dir), "--val_dataset", eval_dataset])
+    subprocess.run(["swift", "infer", "--ckpt_dir", str(ckpt_dir), "--val_dataset", eval_dataset])
     
     result_file = next((Path(ckpt_dir) / "infer_result").iterdir())
-    # convert_jsonl_to_txt(result_file)
-    convert_jsonl_to_txt_multitask(result_file)
+    convert_jsonl_to_txt(result_file)
+    # convert_jsonl_to_txt_multitask(result_file)
 
     hyp_file = result_file.parents[0] / "test.hyp"
     ref_file = result_file.parents[0] / "test.ref"

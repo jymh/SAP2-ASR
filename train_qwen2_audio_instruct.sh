@@ -68,15 +68,28 @@
 #     --sft_type lora \
 #     --deepspeed default-zero2
 
-# # 30k lora multitask
+# # L95 lora filtered keywords
 NPROC_PER_NODE=3 CUDA_VISIBLE_DEVICES=2,3,4 swift sft \
     --model_id_or_path "/data/ymrong/models/qwen2-audio-instruct"  \
     --model_type qwen2-audio-7b-instruct \
-    --dataset "/data/ymrong/Projects/ms-swift/data/slidespeech_30k_multitask_train_en_instruction/train.json" \
-    --val_dataset "/data/ymrong/Projects/ms-swift/data/slidespeech_30k_multitask_train_en_instruction/dev.json" \
-    --eval_steps 500 \
+    --dataset "/data/ymrong/Projects/ms-swift/data/slidespeech_L95_filtered_train_en_instruction/train.json" \
+    --val_dataset "/data/ymrong/Projects/ms-swift/data/slidespeech_L95_filtered_train_en_instruction/dev.json" \
+    --eval_steps 1000 \
     --num_train_epochs 1 \
-    --batch_size 4 \
-    --output_dir "/data/ymrong/output/slidespeech_30k_lora_multitask_train_en_instruction" \
+    --batch_size 8 \
+    --output_dir "/data/ymrong/output/slidespeech_L95_train_filteredkeywords_lora_en_instruction" \
     --sft_type lora \
     --deepspeed default-zero2
+
+# # 30k lora multitask
+# NPROC_PER_NODE=4 CUDA_VISIBLE_DEVICES=2,3,4,5 swift sft \
+#     --model_id_or_path "/data/ymrong/models/qwen2-audio-instruct"  \
+#     --model_type qwen2-audio-7b-instruct \
+#     --dataset "/data/ymrong/Projects/ms-swift/data/slidespeech_30k_multitask_train_en_instruction/train.json" \
+#     --val_dataset "/data/ymrong/Projects/ms-swift/data/slidespeech_30k_multitask_train_en_instruction/dev.json" \
+#     --eval_steps 500 \
+#     --num_train_epochs 1 \
+#     --batch_size 4 \
+#     --output_dir "/data/ymrong/output/slidespeech_30k_lora_multitask_train_en_instruction" \
+#     --sft_type lora \
+#     --deepspeed default-zero2
