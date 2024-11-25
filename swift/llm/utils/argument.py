@@ -614,7 +614,7 @@ class SftArguments(ArgumentsBase):
     full_determinism: bool = False
 
     sft_type: Literal['lora', 'full', 'longlora', 'adalora', 'ia3', 'llamapro', 'adapter', 'vera', 'boft', 'fourierft',
-                      'reft'] = 'lora'
+                      'reft', 'qgcpeft'] = 'lora'
     freeze_parameters: List[str] = field(default_factory=list)
     freeze_vit: bool = False
     freeze_parameters_ratio: float = 0.  # 0 ~ 1
@@ -644,6 +644,9 @@ class SftArguments(ArgumentsBase):
 
     # multimodal
     model_kwargs: Optional[str] = None
+    # if model_kwargs is not None:
+    #     model_kwargs = json.loads(model_kwargs)
+        
     loss_name: Optional[str] = field(default=None, metadata={'help': f'loss_func choices: {list(LOSS_MAPPING.keys())}'})
 
     # dataset_id or dataset_name or dataset_path or ...
@@ -906,6 +909,11 @@ class SftArguments(ArgumentsBase):
     custom_val_dataset_path: List[str] = field(default_factory=list)
     device_map_config_path: Optional[str] = None
     push_hub_strategy: Optional[Literal['end', 'push_best', 'push_last', 'checkpoint', 'all_checkpoints']] = None
+    
+    # # for QGC-Qwen2-Audio by Rong Yiming
+    qgc_window_size: int = 8
+    compressor_hidden_size: int = 4096
+    num_attention_heads: int = 4
 
     def _prepare_target_modules(self, target_modules) -> Union[List[str], str]:
         if isinstance(target_modules, str):
@@ -1064,6 +1072,17 @@ class SftArguments(ArgumentsBase):
                 self.learning_rate = 1e-5
             if self.eval_steps is None:
                 self.eval_steps = 200
+        elif self.sft_type == "qgcpeft":
+            assert self.freeze_parameters_ratio == 0., (
+                'lora does not support `freeze_parameters_ratio`, please set `--sft_type full`')
+            assert len(self.additional_trainable_parameters) == 0, (
+                'lora does not support `additional_trainable_parameters`, please set `--sft_type full`')
+            assert self.quantization_bit == 0
+            assert self.dtype != 'fp16'
+            if self.learning_rate is None:
+                self.learning_rate = 1e-4
+            if self.eval_steps is None:
+                self.eval_steps = 50
         else:
             raise ValueError(f'sft_type: {self.sft_type}')
 

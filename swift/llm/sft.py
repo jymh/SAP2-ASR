@@ -163,6 +163,14 @@ def prepare_model_template_train(args, msg: Optional[Dict[str, Any]] = None):
             i: mem
             for i, mem in zip(range(max(args.local_rank, 0), n_gpu, args.local_world_size), args.device_max_memory)
         }
+        
+    # for qgc
+    if args.qgc_window_size is not None:
+        model_kwargs["qgc_window_size"] = args.qgc_window_size
+    if args.compressor_hidden_size is not None:
+        model_kwargs["compressor_hidden_size"] = args.compressor_hidden_size
+    if args.num_attention_heads is not None:
+        model_kwargs["num_attention_heads"] = args.num_attention_heads
 
     # quantization
     if args.quant_method == 'hqq':

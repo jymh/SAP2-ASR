@@ -195,6 +195,7 @@ class ModelType:
     qwen_audio_chat = 'qwen-audio-chat'
     qwen2_audio_7b = 'qwen2-audio-7b'
     qwen2_audio_7b_instruct = 'qwen2-audio-7b-instruct'
+    qgc_qwen2_audio_7b_instruct = 'qgc-qwen2-audio-7b-instruct'
     qwen2_vl_2b = 'qwen2-vl-2b'
     qwen2_vl_2b_instruct = 'qwen2-vl-2b-instruct'
     qwen2_vl_2b_instruct_gptq_int4 = 'qwen2-vl-2b-instruct-gptq-int4'
@@ -3632,6 +3633,28 @@ def get_model_tokenizer_qwen2_audio(model_dir: str,
     tokenizer.processor = processor
     return model, tokenizer
 
+
+@register_model(
+    ModelType.qgc_qwen2_audio_7b_instruct,
+    None,
+    LoRATM.qwen2_audio,
+    TemplateType.qwen2_audio,
+    support_flash_attn=True,
+    requires=['librosa', 'transformers>=4.45'],
+    tags=['multi-modal', 'audio'],
+    hf_model_id='Qwen/Qwen2-Audio-7B-Instruct')
+def get_model_tokenizer_qgc_qwen2_audio(model_dir: str,
+                                    torch_dtype: torch.dtype,
+                                    model_kwargs: Dict[str, Any],
+                                    load_model: bool = True,
+                                    **kwargs):
+    from transformers import AutoProcessor
+    from swift.llm.models.modeling_qgcqwen2audio import QGCQwen2AudioForConditionalGeneration
+    processor = AutoProcessor.from_pretrained(model_dir)
+    kwargs['automodel_class'] = QGCQwen2AudioForConditionalGeneration
+    model, tokenizer = get_model_tokenizer_with_flash_attn(model_dir, torch_dtype, model_kwargs, load_model, **kwargs)
+    tokenizer.processor = processor
+    return model, tokenizer
 
 def get_model_tokenizer_qwen2_vl(model_dir: str,
                                  torch_dtype: torch.dtype,
