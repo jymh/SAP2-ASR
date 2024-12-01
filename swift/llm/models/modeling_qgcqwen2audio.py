@@ -6,6 +6,7 @@ import torch.utils.checkpoint
 import torch
 from torch import nn
 
+
 from transformers import Qwen2AudioForConditionalGeneration, Qwen2AudioConfig
 from transformers.models.qwen2_audio.modeling_qwen2_audio import Qwen2AudioCausalLMOutputWithPast
 
@@ -15,11 +16,12 @@ def fix_window_size_pooling(hidden_states, attention_mask, weights):
     scatter_matrix = torch.zeros_like(attention_mask)
     scatter_matrix[..., ::window_size] = 1
     scatter_index = scatter_matrix.cumsum(dim=-1) - 1
+    scatter_index = scatter_matrix
     
-    hidden_states_after_weighting = (hidden_states * weights).view(bsz, -1, hidden_size)
+    hidden_states_after_weighting = (hidden_states * weights).reshape(bsz, -1, hidden_size)
     pooling_hidden_states = torch.zeros([bsz, pooled_length, hidden_size], device=hidden_states.device).to(hidden_states.dtype)
     pooling_hidden_states.scatter_add_(1, scatter_index[..., None].repeat(1, 1, hidden_size), hidden_states_after_weighting)
-    
+   
     pooling_attention_mask = torch.zeros([bsz, pooled_length], device=hidden_states.device).to(attention_mask.dtype)
     pooling_attention_mask.scatter_add_(1, scatter_index, attention_mask)
     pooling_attention_mask = pooling_attention_mask.greater(0).to(attention_mask.dtype)
@@ -37,6 +39,7 @@ class Qwen2AudioQGCPoolingLayer(nn.Module):
         # self.contxt_layernorm = nn.LayerNorm(compressor_hidden_size)
         # self.audio_layernorm = nn.LayerNorm(compressor_hidden_size)
         
+        
     def forward(self, audio_hidden_states, contxt_hidden_states, enc_audio_mask, enc_contxt_mask, window_size=None, **kwargs):
         if window_size is None:
             if self.args.random_pool_window_size:
@@ -47,7 +50,7 @@ class Qwen2AudioQGCPoolingLayer(nn.Module):
         bsz, contxt_len, hidden_size = contxt_hidden_states.size()
         if contxt_len % window_size != 0:
             def padding(tensor, shape):
-                return torch.cat([torch.zeros(shape, dtype=tensor.dtype, device=tensor.device), tensor], dim=1)
+                return torch.cat([tensor, torch.zeros(shape, dtype=tensor.dtype, device=tensor.device)], dim=1)
             
             padding_length = window_size - contxt_len % window_size
             contxt_hidden_states = padding(contxt_hidden_states, shape=(bsz, padding_length, hidden_size))
@@ -59,18 +62,18 @@ class Qwen2AudioQGCPoolingLayer(nn.Module):
         audio_mean_hidden_states = audio_mean_hidden_states.sum(dim=1) / enc_audio_mask[..., None].sum(dim=1)
         # audio_mean_hidden_states = self.audio_layernorm(audio_mean_hidden_states)
         
-        query_states = self.q_proj(audio_mean_hidden_states).view(bsz, self.num_heads, self.head_dim)
-        key_states = self.k_proj(contxt_hidden_states).view(bsz, -1, self.num_heads, self.head_dim).transpose(1, 2)
-        value_states = contxt_hidden_states.view(bsz, -1, self.num_heads, self.head_dim).transpose(1, 2)
+        query_states = self.q_proj(audio_mean_hidden_states).reshape(bsz, self.num_heads, self.head_dim)
+        key_states = self.k_proj(contxt_hidden_states).reshape(bsz, -1, self.num_heads, self.head_dim).transpose(1, 2)
+        value_states = contxt_hidden_states.reshape(bsz, -1, self.num_heads, self.head_dim).transpose(1, 2)
         
         pooling_weights = torch.einsum('bnh,bndh->bnd', query_states, key_states) / math.sqrt(self.head_dim)
-        pooling_weights.masked_fill_(~enc_contxt_mask.unsqueeze(1).bool(), torch.finfo(query_states.dtype).min)
-        pooling_weights = pooling_weights.view(bsz, self.num_heads, -1, window_size)
+        pooling_weights = pooling_weights.masked_fill_(~enc_contxt_mask.unsqueeze(1).bool(), torch.finfo(query_states.dtype).min)
+        pooling_weights = pooling_weights.reshape(bsz, self.num_heads, -1, window_size)
         pooling_weights = pooling_weights.softmax(dim=-1, dtype=torch.float32).to(query_states.dtype)
         
         combined_pooling_weights = pooling_weights.permute(0, 2, 3, 1)   # bsz, pooled_length, window_size, num_heads
-        combined_pooling_weights = combined_pooling_weights[..., None].repeat(1, 1, 1, 1, self.head_dim).view(bsz, -1, window_size, self.hidden_size)
-        combined_value_states = value_states.permute(0, 2, 1, 3).view(bsz, -1, window_size, self.hidden_size)
+        combined_pooling_weights = combined_pooling_weights[..., None].repeat(1, 1, 1, 1, self.head_dim).reshape(bsz, -1, window_size, self.hidden_size)
+        combined_value_states = value_states.permute(0, 2, 1, 3).reshape(bsz, -1, window_size, self.hidden_size)
         
         pooling_hidden_states, pooling_attention_mask = fix_window_size_pooling(
             hidden_states=combined_value_states,
@@ -82,7 +85,7 @@ class Qwen2AudioQGCPoolingLayer(nn.Module):
         
 
 class QGCQwen2AudioForConditionalGeneration(Qwen2AudioForConditionalGeneration):
-    def __init__(self, config, qgc_window_size, **kwargs):
+    def __init__(self, config, qgc_window_size=None, **kwargs):
         super().__init__(config)
         
         self.qgc_pooling_layer = Qwen2AudioQGCPoolingLayer(**kwargs)
@@ -185,7 +188,7 @@ class QGCQwen2AudioForConditionalGeneration(Qwen2AudioForConditionalGeneration):
         audio_features_mask = torch.arange(max_audio_tokens).expand(num_audios, max_audio_tokens).to(
             num_audio_tokens.device
         ) < num_audio_tokens.unsqueeze(1)
-        masked_audio_features = audio_features[audio_features_mask].view(-1, embed_dim)
+        masked_audio_features = audio_features[audio_features_mask].reshape(-1, embed_dim)
         
         batch_size, sequence_length = input_ids.shape
         _left_padding = torch.any(attention_mask[:, 0] == 0)
@@ -364,11 +367,6 @@ class QGCQwen2AudioForConditionalGeneration(Qwen2AudioForConditionalGeneration):
             _left_padding = torch.any(attention_mask[:, 0] == 0)
             _right_padding = torch.any(attention_mask[:, -1] == 0)
 
-            # In case the Audio model or the Language model has been offloaded to CPU, we need to manually
-            # set the corresponding tensors into their correct target device.
-            target_device = inputs_embeds.device
-            attention_mask = attention_mask.to(target_device)
-            input_ids = input_ids.to(target_device)
             
             # calculate true text label beginning position
             valid_label_mask = labels != -100
@@ -383,16 +381,15 @@ class QGCQwen2AudioForConditionalGeneration(Qwen2AudioForConditionalGeneration):
             
             # find the first eos_token before valid label
             eos_mask = input_ids == self.config.text_config.eos_token_id
-            prompt_eos_positions = torch.full((batch_size,), -1, dtype=torch.long)
+            prompt_eos_positions = torch.full((batch_size,), -1, dtype=torch.long, device=input_ids.device)
             for i in range(batch_size):
                 first_label_idx = first_label_indices[i]
                 eos_position_candidates = torch.where(eos_mask[i, :first_label_idx])[0]
                 if len(eos_position_candidates) > 0:
                     prompt_eos_positions[i] = eos_position_candidates[-1]
-            prompt_eos_positions = prompt_eos_positions.to(target_device)
             
             audio_eos_mask = input_ids == self.audio_eos_token_id
-            audio_eos_positions = torch.full((batch_size,), -1, dtype=torch.long)
+            audio_eos_positions = torch.full((batch_size,), -1, dtype=torch.long, device=input_ids.device)
             
             # find the audio_eos_token, assert that there is only one audio in each training sample
             for i in range(batch_size):
@@ -400,7 +397,6 @@ class QGCQwen2AudioForConditionalGeneration(Qwen2AudioForConditionalGeneration):
                 if len(audio_eos_candidates) > 0:
                     audio_eos_positions[i] = audio_eos_candidates[-1]
             prompt_start_positions = audio_eos_positions + 2
-            prompt_start_positions = prompt_start_positions.to(target_device)
             
             # Prepare input for qgc compression, only compress context prompts.
             input_ids_before_prompt = [input_ids[i, :prompt_start_positions[i]] for i in range(batch_size)]
@@ -420,10 +416,13 @@ class QGCQwen2AudioForConditionalGeneration(Qwen2AudioForConditionalGeneration):
             labels_after_prompt = [labels[i, prompt_eos_positions[i]:] for i in range(batch_size)]
             
             max_prmopt_length = max([seq.size(0) for seq in input_ids_prompt])
-            padded_input_ids_prompt = torch.full((len(input_ids_prompt), max_prmopt_length), fill_value=0, dtype=input_ids.dtype).to(target_device)
+            padded_inputs_embeds_prompt = torch.full((len(input_ids_prompt), max_prmopt_length, inputs_embeds.size(2)), fill_value=0, dtype=inputs_embeds.dtype, device=inputs_embeds.device)
+            padded_input_ids_prompt = torch.full((len(input_ids_prompt), max_prmopt_length), fill_value=0, dtype=input_ids.dtype, device=input_ids.device)
+            for i, seq in enumerate(inputs_embeds_prompt):
+                padded_inputs_embeds_prompt[i, :seq.size(0)] = seq
             for i, seq in enumerate(input_ids_prompt):
                 padded_input_ids_prompt[i, :seq.size(0)] = seq
-            prompt_attention_mask = (padded_input_ids_prompt != 0).long().to(target_device)
+            prompt_attention_mask = (padded_input_ids_prompt != 0).long()
 
             # 2. Merge text and audios
             if input_features is not None and input_ids.shape[1] != 1:
@@ -442,7 +441,7 @@ class QGCQwen2AudioForConditionalGeneration(Qwen2AudioForConditionalGeneration):
                 # Create mask
                 padding_mask = seq_range >= lengths_expand
 
-                audio_attention_mask_ = padding_mask.view(batch_size, 1, 1, max_seq_len).expand(
+                audio_attention_mask_ = padding_mask.reshape(batch_size, 1, 1, max_seq_len).expand(
                     batch_size, 1, max_seq_len, max_seq_len
                 )
                 audio_attention_mask = audio_attention_mask_.to(
@@ -459,51 +458,51 @@ class QGCQwen2AudioForConditionalGeneration(Qwen2AudioForConditionalGeneration):
                     audio_output_lengths.device
                 ) < audio_output_lengths.unsqueeze(1)
                 
-                padded_inputs_embeds_prompt = self.get_input_embeddings()(padded_input_ids_prompt)
                 
                 # qgc compress
                 qgc_inputs_embeds, qgc_attention_mask = self.qgc_pooling_layer(audio_features, padded_inputs_embeds_prompt, audio_features_mask, prompt_attention_mask, window_size=self.qgc_window_size)
-                qgc_inputs_embeds, qgc_attention_mask = qgc_inputs_embeds.to(target_device), qgc_attention_mask.to(target_device)
+                qgc_inputs_embeds, qgc_attention_mask = qgc_inputs_embeds.to(inputs_embeds.device), qgc_attention_mask.to(inputs_embeds.device)
                 
-                before_prompt_lengths = torch.tensor([seq.size(0) for seq in input_ids_before_prompt]).to(target_device)
-                after_prompt_lengths = torch.tensor([seq.size(0) for seq in input_ids_after_prompt]).to(target_device)
-                qgc_prompt_lengths = qgc_attention_mask.sum(dim=-1).to(target_device)
+                # qgc_inputs_embeds = padded_inputs_embeds_prompt
+                # qgc_attention_mask = prompt_attention_mask
+                
+                # qgc_inputs_embeds = self.qgc_pooling_layer.q_proj(padded_inputs_embeds_prompt)
+                # qgc_inputs_embeds = self.qgc_pooling_layer.k_proj(qgc_inputs_embeds)
+                # qgc_attention_mask = prompt_attention_mask
+                
+                before_prompt_lengths = torch.tensor([seq.size(0) for seq in input_ids_before_prompt], device=inputs_embeds.device)
+                after_prompt_lengths = torch.tensor([seq.size(0) for seq in input_ids_after_prompt], device=inputs_embeds.device)
+                qgc_prompt_lengths = qgc_attention_mask.sum(dim=-1).to(inputs_embeds.device)
                 
                 final_lengths = before_prompt_lengths + qgc_prompt_lengths + after_prompt_lengths
                 max_final_length = final_lengths.max().item()
                 
-                final_input_embeds_list = []
-                final_attention_mask_list = []
-                final_labels_list = []
-                final_input_ids_list = []
-                
+                final_input_embeds = torch.zeros(batch_size, max_final_length, inputs_embeds.size(2), dtype=inputs_embeds.dtype, device=inputs_embeds.device)
+                final_attention_mask = torch.zeros(batch_size, max_final_length, dtype=attention_mask.dtype, device=inputs_embeds.device)
+                final_labels = torch.full((batch_size, max_final_length), fill_value=self.config.ignore_index, dtype=labels.dtype, device=labels.device)
+                final_input_ids = torch.full((batch_size, max_final_length), fill_value=self.pad_token_id, dtype=input_ids.dtype, device=input_ids.device)
+
+ 
                 for i in range(batch_size):
-                    after_prompt_pad_length = max_final_length - before_prompt_lengths[i] - qgc_prompt_lengths[i]
-                    padded_input_ids_after_prompt = torch.full((after_prompt_pad_length,), fill_value=self.text_pad_token_id, dtype=input_ids.dtype, device=input_ids.device)
-                    padded_inputs_embeds_after_prompt = self.get_input_embeddings()(padded_input_ids_after_prompt)
-                    this_input_embeds = torch.cat([inputs_embeds_before_prompt[i], qgc_inputs_embeds[i][qgc_attention_mask[i].bool().to(target_device)], padded_inputs_embeds_after_prompt], dim=0)
+                    final_input_embeds[i, :before_prompt_lengths[i]] = inputs_embeds_before_prompt[i]
+                    final_attention_mask[i, :before_prompt_lengths[i]] = attention_mask_before_prompt[i]
+                    final_labels[i, :before_prompt_lengths[i]] = labels_before_prompt[i]
+                    final_input_ids[i, :before_prompt_lengths[i]] = input_ids_before_prompt[i]
                     
-                    this_attention_mask = torch.cat([attention_mask_before_prompt[i], qgc_attention_mask[i][:qgc_prompt_lengths[i]], attention_mask_after_prompt[i]], dim=0)
-                    this_labels = torch.cat([labels_before_prompt[i], labels_prompt[i][:qgc_prompt_lengths[i]], labels_after_prompt[i]], dim=0)
-                    this_input_ids = torch.cat([input_ids_before_prompt[i], torch.zeros_like(qgc_attention_mask[i][qgc_attention_mask[i].bool()]).long().to(target_device), input_ids_after_prompt[i]])
-                    
-                    final_input_embeds_list.append(this_input_embeds.unsqueeze(0))
-                    final_attention_mask_list.append(this_attention_mask)
-                    final_labels_list.append(this_labels)
-                    final_input_ids_list.append(this_input_ids)
+                    final_input_embeds[i, before_prompt_lengths[i]:before_prompt_lengths[i] + qgc_prompt_lengths[i]] = qgc_inputs_embeds[i][qgc_attention_mask[i].bool()]
+                    final_attention_mask[i, before_prompt_lengths[i]:before_prompt_lengths[i] + qgc_prompt_lengths[i]] = torch.full((qgc_prompt_lengths[i],), fill_value=1, dtype=final_attention_mask.dtype, device=final_attention_mask.device)
+                    final_labels[i, before_prompt_lengths[i]:before_prompt_lengths[i] + qgc_prompt_lengths[i]] = torch.full((qgc_prompt_lengths[i],), fill_value=-100, dtype=final_labels.dtype, device=final_labels.device)
+
+                    final_input_embeds[i, before_prompt_lengths[i] + qgc_prompt_lengths[i]:before_prompt_lengths[i] + qgc_prompt_lengths[i] + inputs_embeds_after_prompt[i].size(0)] = inputs_embeds_after_prompt[i]
+                    final_attention_mask[i, before_prompt_lengths[i] + qgc_prompt_lengths[i]:before_prompt_lengths[i] + qgc_prompt_lengths[i] + attention_mask_after_prompt[i].size(0)] = attention_mask_after_prompt[i]
+                    final_labels[i, before_prompt_lengths[i] + qgc_prompt_lengths[i]:before_prompt_lengths[i] + qgc_prompt_lengths[i] + labels_after_prompt[i].size(0)] = labels_after_prompt[i]
+                    final_input_ids[i, before_prompt_lengths[i] + qgc_prompt_lengths[i]:before_prompt_lengths[i] + qgc_prompt_lengths[i] + input_ids_after_prompt[i].size(0)] = input_ids_after_prompt[i]
+
                 
-                inputs_embeds = torch.cat(final_input_embeds_list, dim=0)
-                attention_mask = torch.nn.utils.rnn.pad_sequence(final_attention_mask_list, batch_first=True, padding_value=0).to(target_device)
-                attention_mask = torch.cat([attention_mask, torch.zeros((batch_size, max_final_length-attention_mask.size(1)), dtype=torch.bool, device=attention_mask.device)], dim=1)
-                labels = torch.nn.utils.rnn.pad_sequence(final_labels_list, batch_first=True, padding_value=self.text_pad_token_id).to(target_device)
-                labels = torch.cat([labels, torch.full((batch_size, max_final_length-labels.size(1)), fill_value=self.text_pad_token_id, dtype=labels.dtype, device=labels.device)], dim=1)
-                input_ids = torch.nn.utils.rnn.pad_sequence(final_input_ids_list, batch_first=True, padding_value=self.text_pad_token_id).to(target_device)
-                input_ids = torch.cat([input_ids, torch.full((batch_size, max_final_length-input_ids.size(1)), fill_value=self.text_pad_token_id, dtype=input_ids.dtype, device=input_ids.device)], dim=1)
-                
-                assert inputs_embeds.size(1) == input_ids.size(1), "Padding error"
+                # assert inputs_embeds.size(1) == input_ids.size(1), "Padding error"
                 
                 inputs_embeds, attention_mask, labels, position_ids, _ = self._merge_input_ids_with_audio_features(
-                    audio_features, audio_output_lengths, inputs_embeds, input_ids, attention_mask, labels
+                    audio_features, audio_output_lengths, final_input_embeds, final_input_ids, final_attention_mask, final_labels
                 )
 
         outputs = self.language_model(
@@ -532,7 +531,7 @@ class QGCQwen2AudioForConditionalGeneration(Qwen2AudioForConditionalGeneration):
             # Flatten the tokens
             loss_fct = nn.CrossEntropyLoss()
             loss = loss_fct(
-                shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1).to(shift_logits.device)
+                shift_logits.reshape(-1, shift_logits.size(-1)), shift_labels.reshape(-1).to(shift_logits.device)
             )
 
         if not return_dict:

@@ -911,9 +911,9 @@ class SftArguments(ArgumentsBase):
     push_hub_strategy: Optional[Literal['end', 'push_best', 'push_last', 'checkpoint', 'all_checkpoints']] = None
     
     # # for QGC-Qwen2-Audio by Rong Yiming
-    qgc_window_size: int = 8
-    compressor_hidden_size: int = 4096
-    num_attention_heads: int = 4
+    qgc_window_size: Optional[int] = None
+    compressor_hidden_size: Optional[int] = None
+    num_attention_heads: Optional[int] = None
 
     def _prepare_target_modules(self, target_modules) -> Union[List[str], str]:
         if isinstance(target_modules, str):
