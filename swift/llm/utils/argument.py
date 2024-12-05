@@ -1452,6 +1452,11 @@ class InferArguments(ArgumentsBase):
     custom_val_dataset_path: List[str] = field(default_factory=list)
     vllm_lora_modules: List[str] = None
     device_map_config_path: Optional[str] = None
+    
+    # # for QGC-Qwen2-Audio by Rong Yiming
+    qgc_window_size: Optional[int] = None
+    compressor_hidden_size: Optional[int] = None
+    num_attention_heads: Optional[int] = None
 
     def __post_init__(self) -> None:
         super().__post_init__()
@@ -1701,6 +1706,11 @@ class ExportArguments(InferArguments):
 
     # The parameter has been defined in InferArguments.
     # merge_lora, hub_token
+    
+    # # for QGC-Qwen2-Audio by Rong Yiming
+    qgc_window_size: Optional[int] = None
+    compressor_hidden_size: Optional[int] = None
+    num_attention_heads: Optional[int] = None
 
     def __post_init__(self):
         if self.merge_device_map is None and self.quant_bits > 0:

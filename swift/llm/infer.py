@@ -92,7 +92,7 @@ def merge_lora(args: InferArguments,
                **kwargs) -> Optional[str]:
     logger.info(f'replace_if_exists: {replace_if_exists}')
     assert args.ckpt_dir is not None, 'args.ckpt_dir is not specified.'
-    assert args.sft_type in ('lora', 'adalora', 'longlora', 'llamapro'), 'Only supports lora & llamapro series models'
+    # assert args.sft_type in ('lora', 'adalora', 'longlora', 'llamapro'), 'Only supports lora & llamapro series models'
     assert not is_quant_model(
         args.model_type), f'{args.model_type} is a quantized model and does not support merge-lora.'
     if args.quantization_bit != 0:
@@ -150,6 +150,14 @@ def prepare_model_template(args: InferArguments,
     if args.device_max_memory:
         assert len(args.device_max_memory) == torch.cuda.device_count()
         model_kwargs['max_memory'] = {i: mem for i, mem in enumerate(args.device_max_memory)}
+        
+    # for qgc
+    if args.qgc_window_size is not None:
+        model_kwargs["qgc_window_size"] = args.qgc_window_size
+    if args.compressor_hidden_size is not None:
+        model_kwargs["compressor_hidden_size"] = args.compressor_hidden_size
+    if args.num_attention_heads is not None:
+        model_kwargs["num_attention_heads"] = args.num_attention_heads
 
     # Loading Model and Tokenizer
     if hasattr(args, 'quant_config'):
@@ -227,6 +235,8 @@ def prepare_model_template(args: InferArguments,
         else:
             model = Swift.from_pretrained(model, args.ckpt_dir, inference_mode=True)
         model = model.to(model.dtype)
+    elif args.sft_type == "qgcpeft" and args.ckpt_dir is not None:
+        model = Swift.from_pretrained(model, args.ckpt_dir, extra_state_keys=["qgc_pooling_layer.q_proj.weight", "qgc_pooling_layer.k_proj.weight"], inference_mode=True)
     model.requires_grad_(False)
 
     if task == 'infer':

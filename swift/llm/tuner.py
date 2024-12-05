@@ -312,6 +312,7 @@ def prepare_model(model, args: SftArguments):
             
             lora_config = LoRAConfig(lora_dtype=args.lora_dtype, **lora_kwargs)
             model = Swift.prepare_model(model, lora_config, extra_state_keys=["qgc_pooling_layer.q_proj.weight", "qgc_pooling_layer.k_proj.weight"])
+            # model = Swift.prepare_model(model, lora_config)
             logger.info(f'lora_config: {lora_config}')
         else:
             model = Swift.from_pretrained(model, args.resume_from_checkpoint, is_trainable=True, extra_state_keys=["qgc_pooling_layer.q_proj.weight", "qgc_pooling_layer.k_proj.weight"])
