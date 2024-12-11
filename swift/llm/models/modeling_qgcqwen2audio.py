@@ -106,8 +106,8 @@ class Qwen2AudioQGCPoolingLayer(nn.Module):
         self.head_dim = self.hidden_size // self.num_heads
         self.q_proj = nn.Linear(self.hidden_size, self.num_heads * self.head_dim, bias=False)
         self.k_proj = nn.Linear(self.hidden_size, self.num_heads * self.head_dim, bias=False)
-        # self.contxt_layernorm = nn.LayerNorm(compressor_hidden_size)
-        # self.audio_layernorm = nn.LayerNorm(compressor_hidden_size)
+        # self.contxt_layernorm = nn.LayerNorm(self.head_dim)
+        # self.audio_layernorm = nn.LayerNorm(self.head_dim)
         
         
     def forward(self, audio_hidden_states, contxt_hidden_states, enc_audio_mask, enc_contxt_mask, window_size=None, **kwargs):
@@ -130,14 +130,16 @@ class Qwen2AudioQGCPoolingLayer(nn.Module):
         # return contxt_hidden_states, enc_contxt_mask
         
         # contxt_hidden_states = self.contxt_layernorm(contxt_hidden_states)
-        audio_mean_hidden_states = audio_hidden_states.masked_fill(~enc_audio_mask[..., None].bool(), 0.0)
-        audio_mean_hidden_states = audio_mean_hidden_states.sum(dim=1) / enc_audio_mask[..., None].sum(dim=1)
-        # # audio_mean_hidden_states = self.audio_layernorm(audio_mean_hidden_states)
+        audio_hidden_states = audio_hidden_states.masked_fill(~enc_audio_mask[..., None].bool(), 0.0)
+        # audio_hidden_states = self.audio_layernorm(audio_hidden_states)
         
-        query_states = self.q_proj(audio_mean_hidden_states).contiguous().reshape(bsz, self.num_heads, self.head_dim)
+        query_states = self.q_proj(audio_hidden_states).contiguous().reshape(bsz, -1, self.num_heads, self.head_dim).transpose(1, 2) # query_states: (bsz, num_heads, audio_length, head_dim)
         key_states = self.k_proj(contxt_hidden_states).contiguous().reshape(bsz, -1, self.num_heads, self.head_dim).transpose(1, 2) # key_states: (bsz, num_heads, contxt_length, head_dim)
+        # query_states = self.audio_layernorm(query_states)
+        # key_states = self.contxt_layernorm(key_states)
         
-        pooling_weights = torch.einsum('bnh,bndh->bnd', query_states, key_states) / math.sqrt(self.head_dim) # pooling_weights: (bsz, num_heads, contxt_length)
+        pooling_weights = torch.einsum('bnqh,bnkh->bnqk', query_states, key_states) / math.sqrt(self.head_dim) # pooling_weights: (bsz, num_heads, audio_length, contxt_length)
+        pooling_weights = pooling_weights.sum(dim=2) / enc_audio_mask[..., None, None].sum(dim=1) # pooling_weights: (bsz, num_heads, contxt_length)
         pooling_weights.masked_fill_(~enc_contxt_mask.unsqueeze(1).bool(), torch.finfo(query_states.dtype).min)
         
         pooling_weights = pooling_weights.softmax(dim=-1).to(query_states.dtype)
@@ -146,6 +148,7 @@ class Qwen2AudioQGCPoolingLayer(nn.Module):
         pooling_attention_mask = enc_contxt_mask  
 
         return pooling_hidden_states, pooling_attention_mask
+    
 
 
 class QGCQwen2AudioForConditionalGeneration(Qwen2AudioForConditionalGeneration):
@@ -157,6 +160,8 @@ class QGCQwen2AudioForConditionalGeneration(Qwen2AudioForConditionalGeneration):
         
         self.audio_bos_token_id = 151647  # <|audio_bos|>
         self.audio_eos_token_id = 151648  # <|audio_eos|>
+        self.context_bos_token_id = None  # <|startofcontext|>
+        self.context_eos_token_id = None  # <|endofcontext|>
         
         self.text_pad_token_id = self.config.text_config.bos_token_id # <|endoftext|>
         
@@ -437,35 +442,23 @@ class QGCQwen2AudioForConditionalGeneration(Qwen2AudioForConditionalGeneration):
 
             
             # calculate true text label beginning position
-            valid_label_mask = labels != -100
-            first_label_indices = valid_label_mask.float().argmax(dim=-1)
-            
-            if not valid_label_mask.any(dim=-1).all():
-                raise ValueError("No valid text label for training!")
+            if labels is not None:
+                valid_label_mask = labels != -100
+                first_label_indices = valid_label_mask.float().argmax(dim=-1)
+                
+                if not valid_label_mask.any(dim=-1).all():
+                    raise ValueError("No valid text label for training!")
         
             '''
+            training:
             input_ids: <|im_start|>system\n system prompt <|im_end|>\n<|im_start|>user\nAudio 1: <|audio_bos|><|AUDIO|><|audio_eos|>\n PROMPT CONTEXT<|im_end|>\n<|im_start|>assistant\n VALID LABEL...
+            inference:
+            input_ids: <|im_start|>system\n system prompt <|im_end|>\n<|im_start|>user\nAudio 1: <|audio_bos|><|AUDIO|><|audio_eos|>\n PROMPT CONTEXT<|im_end|>\n<|im_start|>assistant\n
             '''
             
-            # find the first eos_token before valid label
-            eos_mask = input_ids == self.config.text_config.eos_token_id
-            prompt_eos_positions = torch.full((batch_size,), -1, dtype=torch.long, device=input_ids.device)
-            for i in range(batch_size):
-                first_label_idx = first_label_indices[i]
-                eos_position_candidates = torch.where(eos_mask[i, :first_label_idx])[0]
-                if len(eos_position_candidates) > 0:
-                    prompt_eos_positions[i] = eos_position_candidates[-1]
-            
-            audio_eos_mask = input_ids == self.audio_eos_token_id
-            audio_eos_positions = torch.full((batch_size,), -1, dtype=torch.long, device=input_ids.device)
-            
-            # find the audio_eos_token, assert that there is only one audio in each training sample
-            for i in range(batch_size):
-                audio_eos_candidates = torch.where(audio_eos_mask[i, :prompt_eos_positions[i]])[0]
-                if len(audio_eos_candidates) > 0:
-                    audio_eos_positions[i] = audio_eos_candidates[-1]
-            prompt_start_positions = audio_eos_positions + 2
-            
+            prompt_start_positions = torch.where(input_ids == self.context_bos_token_id)[1].long().to(input_ids.device) + 1
+            prompt_eos_positions = torch.where(input_ids == self.context_eos_token_id)[1].long().to(input_ids.device)
+
             # Prepare input for qgc compression, only compress context prompts.
             input_ids_before_prompt = [input_ids[i, :prompt_start_positions[i]] for i in range(batch_size)]
             input_ids_prompt = [input_ids[i, prompt_start_positions[i]:prompt_eos_positions[i]] for i in range(batch_size)]
@@ -479,9 +472,10 @@ class QGCQwen2AudioForConditionalGeneration(Qwen2AudioForConditionalGeneration):
             attention_mask_prompt = [attention_mask[i, prompt_start_positions[i]:prompt_eos_positions[i]] for i in range(batch_size)]
             attention_mask_after_prompt = [attention_mask[i, prompt_eos_positions[i]:] for i in range(batch_size)]
             
-            labels_before_prompt = [labels[i, :prompt_start_positions[i]] for i in range(batch_size)]
-            labels_prompt = [labels[i, prompt_start_positions[i]:prompt_eos_positions[i]] for i in range(batch_size)]
-            labels_after_prompt = [labels[i, prompt_eos_positions[i]:] for i in range(batch_size)]
+            if labels is not None:
+                labels_before_prompt = [labels[i, :prompt_start_positions[i]] for i in range(batch_size)]
+                labels_prompt = [labels[i, prompt_start_positions[i]:prompt_eos_positions[i]] for i in range(batch_size)]
+                labels_after_prompt = [labels[i, prompt_eos_positions[i]:] for i in range(batch_size)]
             
             max_prmopt_length = max([seq.size(0) for seq in input_ids_prompt])
             padded_inputs_embeds_prompt = torch.full((len(input_ids_prompt), max_prmopt_length, inputs_embeds.size(2)), fill_value=0, dtype=inputs_embeds.dtype, device=inputs_embeds.device)
@@ -540,26 +534,29 @@ class QGCQwen2AudioForConditionalGeneration(Qwen2AudioForConditionalGeneration):
                 
                 final_input_embeds = torch.zeros(batch_size, max_final_length, inputs_embeds.size(2), dtype=inputs_embeds.dtype, device=inputs_embeds.device)
                 final_attention_mask = torch.zeros(batch_size, max_final_length, dtype=attention_mask.dtype, device=inputs_embeds.device)
-                final_labels = torch.full((batch_size, max_final_length), fill_value=self.config.ignore_index, dtype=labels.dtype, device=labels.device)
                 final_input_ids = torch.full((batch_size, max_final_length), fill_value=self.pad_token_id, dtype=input_ids.dtype, device=input_ids.device)
+                if labels is not None:
+                    final_labels = torch.full((batch_size, max_final_length), fill_value=self.config.ignore_index, dtype=labels.dtype, device=labels.device)
+                else:
+                    final_labels = None
 
- 
                 for i in range(batch_size):
                     final_input_embeds[i, :before_prompt_lengths[i]] = inputs_embeds_before_prompt[i]
                     final_attention_mask[i, :before_prompt_lengths[i]] = attention_mask_before_prompt[i]
-                    final_labels[i, :before_prompt_lengths[i]] = labels_before_prompt[i]
                     final_input_ids[i, :before_prompt_lengths[i]] = input_ids_before_prompt[i]
                     
                     final_input_embeds[i, before_prompt_lengths[i]:before_prompt_lengths[i] + qgc_prompt_lengths[i]] = qgc_inputs_embeds[i][:qgc_prompt_lengths[i]]
                     final_attention_mask[i, before_prompt_lengths[i]:before_prompt_lengths[i] + qgc_prompt_lengths[i]] = qgc_attention_mask[i][:qgc_prompt_lengths[i]]
-                    final_labels[i, before_prompt_lengths[i]:before_prompt_lengths[i] + qgc_prompt_lengths[i]] = torch.full((qgc_prompt_lengths[i],), fill_value=-100, dtype=final_labels.dtype, device=final_labels.device)
-
+                    
                     final_input_embeds[i, before_prompt_lengths[i] + qgc_prompt_lengths[i]:before_prompt_lengths[i] + qgc_prompt_lengths[i] + inputs_embeds_after_prompt[i].size(0)] = inputs_embeds_after_prompt[i]
                     final_attention_mask[i, before_prompt_lengths[i] + qgc_prompt_lengths[i]:before_prompt_lengths[i] + qgc_prompt_lengths[i] + attention_mask_after_prompt[i].size(0)] = attention_mask_after_prompt[i]
-                    final_labels[i, before_prompt_lengths[i] + qgc_prompt_lengths[i]:before_prompt_lengths[i] + qgc_prompt_lengths[i] + labels_after_prompt[i].size(0)] = labels_after_prompt[i]
                     final_input_ids[i, before_prompt_lengths[i] + qgc_prompt_lengths[i]:before_prompt_lengths[i] + qgc_prompt_lengths[i] + input_ids_after_prompt[i].size(0)] = input_ids_after_prompt[i]
 
-                
+                    if labels is not None:
+                        final_labels[i, :before_prompt_lengths[i]] = labels_before_prompt[i]
+                        final_labels[i, before_prompt_lengths[i]:before_prompt_lengths[i] + qgc_prompt_lengths[i]] = torch.full((qgc_prompt_lengths[i],), fill_value=-100, dtype=final_labels.dtype, device=final_labels.device)
+                        final_labels[i, before_prompt_lengths[i] + qgc_prompt_lengths[i]:before_prompt_lengths[i] + qgc_prompt_lengths[i] + labels_after_prompt[i].size(0)] = labels_after_prompt[i]
+
                 # final_lengths = before_prompt_lengths + qgc_prompt_lengths + after_prompt_lengths
                 # max_final_length = final_lengths.max().item()
                 

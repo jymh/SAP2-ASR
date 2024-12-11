@@ -3654,6 +3654,8 @@ def get_model_tokenizer_qgc_qwen2_audio(model_dir: str,
     kwargs['automodel_class'] = QGCQwen2AudioForConditionalGeneration
     model, tokenizer = get_model_tokenizer_with_flash_attn(model_dir, torch_dtype, model_kwargs, load_model, **kwargs)
     tokenizer.processor = processor
+    tokenizer.add_special_tokens({'additional_special_tokens': ['<|startofcontext|>', '<|endofcontext|>']})
+    model.audio_bos_token_id, model.audio_eos_token_id, model.context_bos_token_id, model.context_eos_token_id = tokenizer.convert_tokens_to_ids(['<|audio_bos|>', '<|audio_eos|>', '<|startofcontext|>', '<|endofcontext|>'])
     return model, tokenizer
 
 def get_model_tokenizer_qwen2_vl(model_dir: str,
