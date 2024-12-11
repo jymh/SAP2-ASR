@@ -436,58 +436,51 @@ class QGCQwen2AudioForConditionalGeneration(Qwen2AudioForConditionalGeneration):
             # # 1. Extract the input embeddings
             inputs_embeds = self.get_input_embeddings()(input_ids)
             
-            batch_size, sequence_length = input_ids.shape
-            _left_padding = torch.any(attention_mask[:, 0] == 0)
-            _right_padding = torch.any(attention_mask[:, -1] == 0)
-
-            
-            # calculate true text label beginning position
-            if labels is not None:
-                valid_label_mask = labels != -100
-                first_label_indices = valid_label_mask.float().argmax(dim=-1)
-                
-                if not valid_label_mask.any(dim=-1).all():
-                    raise ValueError("No valid text label for training!")
-        
-            '''
-            training:
-            input_ids: <|im_start|>system\n system prompt <|im_end|>\n<|im_start|>user\nAudio 1: <|audio_bos|><|AUDIO|><|audio_eos|>\n PROMPT CONTEXT<|im_end|>\n<|im_start|>assistant\n VALID LABEL...
-            inference:
-            input_ids: <|im_start|>system\n system prompt <|im_end|>\n<|im_start|>user\nAudio 1: <|audio_bos|><|AUDIO|><|audio_eos|>\n PROMPT CONTEXT<|im_end|>\n<|im_start|>assistant\n
-            '''
-            
-            prompt_start_positions = torch.where(input_ids == self.context_bos_token_id)[1].long().to(input_ids.device) + 1
-            prompt_eos_positions = torch.where(input_ids == self.context_eos_token_id)[1].long().to(input_ids.device)
-
-            # Prepare input for qgc compression, only compress context prompts.
-            input_ids_before_prompt = [input_ids[i, :prompt_start_positions[i]] for i in range(batch_size)]
-            input_ids_prompt = [input_ids[i, prompt_start_positions[i]:prompt_eos_positions[i]] for i in range(batch_size)]
-            input_ids_after_prompt = [input_ids[i, prompt_eos_positions[i]:] for i in range(batch_size)]
-            
-            inputs_embeds_before_prompt = [inputs_embeds[i, :prompt_start_positions[i]] for i in range(batch_size)]
-            inputs_embeds_prompt = [inputs_embeds[i, prompt_start_positions[i]:prompt_eos_positions[i]] for i in range(batch_size)]
-            inputs_embeds_after_prompt = [inputs_embeds[i, prompt_eos_positions[i]:] for i in range(batch_size)]
-            
-            attention_mask_before_prompt = [attention_mask[i, :prompt_start_positions[i]] for i in range(batch_size)]
-            attention_mask_prompt = [attention_mask[i, prompt_start_positions[i]:prompt_eos_positions[i]] for i in range(batch_size)]
-            attention_mask_after_prompt = [attention_mask[i, prompt_eos_positions[i]:] for i in range(batch_size)]
-            
-            if labels is not None:
-                labels_before_prompt = [labels[i, :prompt_start_positions[i]] for i in range(batch_size)]
-                labels_prompt = [labels[i, prompt_start_positions[i]:prompt_eos_positions[i]] for i in range(batch_size)]
-                labels_after_prompt = [labels[i, prompt_eos_positions[i]:] for i in range(batch_size)]
-            
-            max_prmopt_length = max([seq.size(0) for seq in input_ids_prompt])
-            padded_inputs_embeds_prompt = torch.full((len(input_ids_prompt), max_prmopt_length, inputs_embeds.size(2)), fill_value=0, dtype=inputs_embeds.dtype, device=inputs_embeds.device)
-            padded_input_ids_prompt = torch.full((len(input_ids_prompt), max_prmopt_length), fill_value=0, dtype=input_ids.dtype, device=input_ids.device)
-            for i, seq in enumerate(inputs_embeds_prompt):
-                padded_inputs_embeds_prompt[i, :seq.size(0)] = seq
-            for i, seq in enumerate(input_ids_prompt):
-                padded_input_ids_prompt[i, :seq.size(0)] = seq
-            prompt_attention_mask = (padded_input_ids_prompt != 0).long()
 
             # 2. Merge text and audios
             if input_features is not None and input_ids.shape[1] != 1:
+                
+                # extract context and apply speech-guided embedding
+                batch_size, sequence_length = input_ids.shape
+            
+                '''
+                training:
+                input_ids: <|im_start|>system\n system prompt <|im_end|>\n<|im_start|>user\nAudio 1: <|audio_bos|><|AUDIO|><|audio_eos|>\n PROMPT CONTEXT<|im_end|>\n<|im_start|>assistant\n VALID LABEL...
+                inference:
+                input_ids: <|im_start|>system\n system prompt <|im_end|>\n<|im_start|>user\nAudio 1: <|audio_bos|><|AUDIO|><|audio_eos|>\n PROMPT CONTEXT<|im_end|>\n<|im_start|>assistant\n
+                '''
+                
+                prompt_start_positions = torch.where(input_ids == self.context_bos_token_id)[1].long().to(input_ids.device) + 1
+                prompt_eos_positions = torch.where(input_ids == self.context_eos_token_id)[1].long().to(input_ids.device)
+
+                # Prepare input for qgc compression, only compress context prompts.
+                input_ids_before_prompt = [input_ids[i, :prompt_start_positions[i]] for i in range(batch_size)]
+                input_ids_prompt = [input_ids[i, prompt_start_positions[i]:prompt_eos_positions[i]] for i in range(batch_size)]
+                input_ids_after_prompt = [input_ids[i, prompt_eos_positions[i]:] for i in range(batch_size)]
+                
+                inputs_embeds_before_prompt = [inputs_embeds[i, :prompt_start_positions[i]] for i in range(batch_size)]
+                inputs_embeds_prompt = [inputs_embeds[i, prompt_start_positions[i]:prompt_eos_positions[i]] for i in range(batch_size)]
+                inputs_embeds_after_prompt = [inputs_embeds[i, prompt_eos_positions[i]:] for i in range(batch_size)]
+                
+                attention_mask_before_prompt = [attention_mask[i, :prompt_start_positions[i]] for i in range(batch_size)]
+                attention_mask_prompt = [attention_mask[i, prompt_start_positions[i]:prompt_eos_positions[i]] for i in range(batch_size)]
+                attention_mask_after_prompt = [attention_mask[i, prompt_eos_positions[i]:] for i in range(batch_size)]
+                
+                if labels is not None:
+                    labels_before_prompt = [labels[i, :prompt_start_positions[i]] for i in range(batch_size)]
+                    labels_prompt = [labels[i, prompt_start_positions[i]:prompt_eos_positions[i]] for i in range(batch_size)]
+                    labels_after_prompt = [labels[i, prompt_eos_positions[i]:] for i in range(batch_size)]
+                
+                max_prmopt_length = max([seq.size(0) for seq in input_ids_prompt])
+                padded_inputs_embeds_prompt = torch.full((len(input_ids_prompt), max_prmopt_length, inputs_embeds.size(2)), fill_value=0, dtype=inputs_embeds.dtype, device=inputs_embeds.device)
+                padded_input_ids_prompt = torch.full((len(input_ids_prompt), max_prmopt_length), fill_value=0, dtype=input_ids.dtype, device=input_ids.device)
+                for i, seq in enumerate(inputs_embeds_prompt):
+                    padded_inputs_embeds_prompt[i, :seq.size(0)] = seq
+                for i, seq in enumerate(input_ids_prompt):
+                    padded_input_ids_prompt[i, :seq.size(0)] = seq
+                prompt_attention_mask = (padded_input_ids_prompt != 0).long()
+                    
+                
                 audio_feat_lengths, audio_output_lengths = self.audio_tower._get_feat_extract_output_lengths(
                     feature_attention_mask.sum(-1)
                 )
@@ -557,32 +550,6 @@ class QGCQwen2AudioForConditionalGeneration(Qwen2AudioForConditionalGeneration):
                         final_labels[i, before_prompt_lengths[i]:before_prompt_lengths[i] + qgc_prompt_lengths[i]] = torch.full((qgc_prompt_lengths[i],), fill_value=-100, dtype=final_labels.dtype, device=final_labels.device)
                         final_labels[i, before_prompt_lengths[i] + qgc_prompt_lengths[i]:before_prompt_lengths[i] + qgc_prompt_lengths[i] + labels_after_prompt[i].size(0)] = labels_after_prompt[i]
 
-                # final_lengths = before_prompt_lengths + qgc_prompt_lengths + after_prompt_lengths
-                # max_final_length = final_lengths.max().item()
-                
-                # final_input_embeds = torch.zeros(batch_size, max_final_length, inputs_embeds.size(2), dtype=inputs_embeds.dtype, device=inputs_embeds.device)
-                # final_attention_mask = torch.zeros(batch_size, max_final_length, dtype=attention_mask.dtype, device=inputs_embeds.device)
-                # final_labels = torch.full((batch_size, max_final_length), fill_value=self.config.ignore_index, dtype=labels.dtype, device=labels.device)
-                # final_input_ids = torch.full((batch_size, max_final_length), fill_value=self.pad_token_id, dtype=input_ids.dtype, device=input_ids.device)
-
- 
-                # for i in range(batch_size):
-                #     final_input_embeds[i, :before_prompt_lengths[i]] = inputs_embeds_before_prompt[i]
-                #     final_attention_mask[i, :before_prompt_lengths[i]] = attention_mask_before_prompt[i]
-                #     final_labels[i, :before_prompt_lengths[i]] = labels_before_prompt[i]
-                #     final_input_ids[i, :before_prompt_lengths[i]] = input_ids_before_prompt[i]
-                    
-                #     final_input_embeds[i, before_prompt_lengths[i]:before_prompt_lengths[i] + qgc_prompt_lengths[i]] = qgc_inputs_embeds[i][qgc_attention_mask[i].bool()].contiguous()
-                #     final_attention_mask[i, before_prompt_lengths[i]:before_prompt_lengths[i] + qgc_prompt_lengths[i]] = torch.full((qgc_prompt_lengths[i],), fill_value=1, dtype=final_attention_mask.dtype, device=final_attention_mask.device)
-                #     final_labels[i, before_prompt_lengths[i]:before_prompt_lengths[i] + qgc_prompt_lengths[i]] = torch.full((qgc_prompt_lengths[i],), fill_value=-100, dtype=final_labels.dtype, device=final_labels.device)
-
-                #     final_input_embeds[i, before_prompt_lengths[i] + qgc_prompt_lengths[i]:before_prompt_lengths[i] + qgc_prompt_lengths[i] + inputs_embeds_after_prompt[i].size(0)] = inputs_embeds_after_prompt[i]
-                #     final_attention_mask[i, before_prompt_lengths[i] + qgc_prompt_lengths[i]:before_prompt_lengths[i] + qgc_prompt_lengths[i] + attention_mask_after_prompt[i].size(0)] = attention_mask_after_prompt[i]
-                #     final_labels[i, before_prompt_lengths[i] + qgc_prompt_lengths[i]:before_prompt_lengths[i] + qgc_prompt_lengths[i] + labels_after_prompt[i].size(0)] = labels_after_prompt[i]
-                #     final_input_ids[i, before_prompt_lengths[i] + qgc_prompt_lengths[i]:before_prompt_lengths[i] + qgc_prompt_lengths[i] + input_ids_after_prompt[i].size(0)] = input_ids_after_prompt[i]
-
-                
-                # assert inputs_embeds.size(1) == input_ids.size(1), "Padding error"
                 
                 inputs_embeds, attention_mask, labels, position_ids, _ = self._merge_input_ids_with_audio_features(
                     audio_features, audio_output_lengths, final_input_embeds, final_input_ids, final_attention_mask, final_labels
