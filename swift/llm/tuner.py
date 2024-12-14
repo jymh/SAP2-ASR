@@ -311,7 +311,7 @@ def prepare_model(model, args: SftArguments):
             activate_model_parameters(model, ["qgc_pooling_layer"])
             
             lora_config = LoRAConfig(lora_dtype=args.lora_dtype, **lora_kwargs)
-            model = Swift.prepare_model(model, lora_config, extra_state_keys=["qgc_pooling_layer.q_proj.weight", "qgc_pooling_layer.k_proj.weight"])
+            model = Swift.prepare_model(model, lora_config, extra_state_keys=["qgc_pooling_layer.q_proj.weight", "qgc_pooling_layer.k_proj.weight", "qgc_pooling_layer.semantic_alignment_layer.weight"])
             # model = Swift.prepare_model(model, lora_config)
             logger.info(f'lora_config: {lora_config}')
         else:
