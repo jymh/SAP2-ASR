@@ -140,12 +140,13 @@ class Qwen2AudioQGCPoolingLayer(nn.Module):
         # key_states = self.contxt_layernorm(key_states)
         
         pooling_weights = torch.einsum('bnqh,bnkh->bnqk', query_states, key_states) / math.sqrt(self.head_dim) # pooling_weights: (bsz, num_heads, audio_length, contxt_length)
-        pooling_weights = pooling_weights.masked_fill(~enc_audio_mask[:, None, :, None].bool(), torch.finfo(query_states.dtype).min) # pooling_weights: (bsz, num_heads, audio_length, contxt_length)
+        pooling_weights.masked_fill(~enc_audio_mask[:, None, :, None].bool(), torch.finfo(query_states.dtype).min) # pooling_weights: (bsz, num_heads, audio_length, contxt_length)
         
-        pooling_weights = torch.softmax(pooling_weights, dim=-2) 
-        pooling_weights = pooling_weights.mean(dim=-2) # (bsz, num_heads, contxt_len)
+        pooling_weights = pooling_weights.softmax(dim=-2)
+        pooling_weights = pooling_weights.sum(dim=-2) / enc_audio_mask[..., None, None].sum(dim=-2) # (bsz, num_heads, contxt_len)
+        pooling_weights.masked_fill(~enc_contxt_mask[..., None].bool(), torch.finfo(query_states.dtype).min)
+        pooling_weights = pooling_weights.softmax(dim=-1) # (bsz, num_heads, contxt_len)
         pooling_weights = pooling_weights.transpose(1, 2)[..., None].repeat(1, 1, 1, self.head_dim).contiguous().reshape(bsz, -1, self.hidden_size) # (bsz, contxt_len, hidden_size)
-        pooling_weights = pooling_weights.masked_fill(~enc_contxt_mask[..., None].bool(), 0.0)
         pooling_hidden_states = (contxt_hidden_states * pooling_weights).contiguous().reshape(bsz, -1, self.hidden_size)
         pooling_hidden_states = self.semantic_alignment_layer(pooling_hidden_states)
         pooling_attention_mask = enc_contxt_mask  
