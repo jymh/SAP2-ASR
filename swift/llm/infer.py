@@ -236,7 +236,7 @@ def prepare_model_template(args: InferArguments,
             model = Swift.from_pretrained(model, args.ckpt_dir, inference_mode=True)
         model = model.to(model.dtype)
     elif args.sft_type == "qgcpeft" and args.ckpt_dir is not None:
-        model = Swift.from_pretrained(model, args.ckpt_dir, extra_state_keys=["qgc_pooling_layer.q_proj.weight", "qgc_pooling_layer.k_proj.weight"], inference_mode=True)
+        model = Swift.from_pretrained(model, args.ckpt_dir, extra_state_keys=["qgc_pooling_layer.q_proj.weight", "qgc_pooling_layer.k_proj.weight", "qgc_pooling_layer.semantic_alignment_layer.weight"], inference_mode=True)
     model.requires_grad_(False)
 
     if task == 'infer':
