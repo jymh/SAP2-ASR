@@ -315,7 +315,7 @@ def prepare_model(model, args: SftArguments):
             # model = Swift.prepare_model(model, lora_config)
             logger.info(f'lora_config: {lora_config}')
         else:
-            model = Swift.from_pretrained(model, args.resume_from_checkpoint, is_trainable=True, extra_state_keys=["qgc_pooling_layer.q_proj.weight", "qgc_pooling_layer.k_proj.weight"])
+            model = Swift.from_pretrained(model, args.resume_from_checkpoint, is_trainable=True, extra_state_keys=["qgc_pooling_layer.q_proj.weight", "qgc_pooling_layer.k_proj.weight", "qgc_pooling_layer.semantic_alignment_layer.weight"])
             
             # import safetensors
             # weights_file = os.path.join(args.resume_from_checkpoint, 'pytorch_model.bin')
