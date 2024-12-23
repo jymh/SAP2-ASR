@@ -494,6 +494,13 @@ def get_model_tokenizer(
     kwargs['automodel_class'] = automodel_class
     kwargs['attn_impl'] = attn_impl
     kwargs['rope_scaling'] = rope_scaling
+    
+    if kwargs["qgc_window_size"] is not None:
+        model_kwargs["qgc_window_size"] = kwargs["qgc_window_size"]
+    if kwargs["compressor_hidden_size"] is not None:
+        model_kwargs["compressor_hidden_size"] = kwargs["compressor_hidden_size"]
+    if kwargs["num_attention_heads"] is not None:
+        model_kwargs["num_attention_heads"] = kwargs["num_attention_heads"]
     model, processor = get_function(model_dir, model_info, model_kwargs, load_model, **kwargs)
 
     if not isinstance(processor, PreTrainedTokenizerBase) and hasattr(processor, 'tokenizer'):

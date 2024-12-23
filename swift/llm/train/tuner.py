@@ -297,6 +297,16 @@ def prepare_adapter(args: TrainArguments, model, *, template=None, train_dataset
         )
         logger.info(f'bone config: {bone_config}')
         model = Swift.prepare_model(model, bone_config)
+    elif args.train_type == "qgcpeft":
+        model.requires_grad_(False)
+        activate_parameters(model, ["qgc_pooling_layer"])
+        
+        lora_config = LoRAConfig(lora_dtype=args.lora_dtype, **lora_kwargs)
+        # model = Swift.prepare_model(model, lora_config, extra_state_keys=["qgc_pooling_layer.q_proj.weight", "qgc_pooling_layer.k_proj.weight", "qgc_pooling_layer.semantic_alignment_layer.weight"])
+        model = Swift.prepare_model(model, lora_config, extra_state_keys=["qgc_pooling_layer.q_proj.weight", "qgc_pooling_layer.k_proj.weight", "qgc_pooling_layer.contxt_layernorm.weight", "qgc_pooling_layer.audio_layernorm.weight", "qgc_pooling_layer.semantic_alignment_layer.bias", "qgc_pooling_layer.semantic_alignment_layer.weight"])
+        # model = Swift.prepare_model(model, lora_config)
+        logger.info(f'lora_config: {lora_config}')
+            
     return model
 
 
@@ -355,7 +365,12 @@ class TunerMixin:
                 kwargs = {}
                 if use_torchacc():
                     kwargs = {'adapter_name': 'default'}
-                model = tuner.from_pretrained(model, args.resume_from_checkpoint, is_trainable=True, **kwargs)
+                if args.train_type != "qgcpeft":
+                    model = tuner.from_pretrained(model, args.resume_from_checkpoint, is_trainable=True, **kwargs)
+                else:
+                    # model = tuner.from_pretrained(model, args.resume_from_checkpoint, is_trainable=True, extra_state_keys=["qgc_pooling_layer.q_proj.weight", "qgc_pooling_layer.k_proj.weight", "qgc_pooling_layer.semantic_alignment_layer.weight"])
+                    model = tuner.from_pretrained(model, args.resume_from_checkpoint, is_trainable=True, extra_state_keys=["qgc_pooling_layer.q_proj.weight", "qgc_pooling_layer.k_proj.weight", "qgc_pooling_layer.contxt_layernorm.weight", "qgc_pooling_layer.audio_layernorm.weight", "qgc_pooling_layer.semantic_alignment_layer.bias", "qgc_pooling_layer.semantic_alignment_layer.weight"])
+                # model = tuner.from_pretrained(model, args.resume_from_checkpoint, is_trainable=True, **kwargs)
             else:
                 if args.train_type in extra_tuners:
                     tuner: Tuner = extra_tuners[args.train_type]

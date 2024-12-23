@@ -111,6 +111,11 @@ class InferArguments(MergeArguments, VllmArguments, LmdeployArguments, BaseArgum
     writer_buffer_size: int = 65536
     # for pt engine
     max_batch_size: int = 1
+    
+    # # for QGC-Qwen2-Audio by Rong Yiming
+    qgc_window_size: Optional[int] = None
+    compressor_hidden_size: Optional[int] = None
+    num_attention_heads: Optional[int] = None
 
     # only for inference
     val_dataset_sample: Optional[int] = None

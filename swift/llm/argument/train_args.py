@@ -121,6 +121,11 @@ class TrainArguments(TorchAccArguments, TunerArguments, Seq2SeqTrainingOverrideA
     temperature: float = 0.
     optimizer: Optional[str] = None
     metric: Optional[str] = None
+    
+    # # for QGC-Qwen2-Audio by Rong Yiming
+    qgc_window_size: Optional[int] = None
+    compressor_hidden_size: Optional[int] = None
+    num_attention_heads: Optional[int] = None
 
     def __post_init__(self) -> None:
         if self.resume_from_checkpoint:
@@ -210,3 +215,29 @@ class TrainArguments(TorchAccArguments, TunerArguments, Seq2SeqTrainingOverrideA
         self.training_args.output_dir = self.output_dir
         self.training_args.run_name = self.output_dir
         self.training_args.logging_dir = self.logging_dir
+    
+    def get_model_processor(self, *, model=None, model_type=None, model_revision=None, **kwargs):
+        from swift.llm import get_model_tokenizer
+        if self.tuner_backend == 'unsloth':
+            return load_by_unsloth(self)
+        kwargs.update(self.get_model_kwargs())
+        # compat rlhf
+        kwargs['model_id_or_path'] = model or self.model
+        kwargs['model_type'] = model_type or self.model_type
+        kwargs['model_revision'] = model_revision or self.model_revision
+
+        model_kwargs = {}
+        # for qgc
+        if self.qgc_window_size is not None:
+            kwargs["qgc_window_size"] = self.qgc_window_size
+        if self.compressor_hidden_size is not None:
+            kwargs["compressor_hidden_size"] = self.compressor_hidden_size
+        if self.num_attention_heads is not None:
+            kwargs["num_attention_heads"] = self.num_attention_heads
+        
+        if self.num_labels is not None:
+            from transformers import AutoModelForSequenceClassification
+            kwargs['automodel_class'] = AutoModelForSequenceClassification
+            model_kwargs = {'num_labels': self.num_labels}
+        model, processor = get_model_tokenizer(**kwargs, model_kwargs=model_kwargs)
+        return model, processor

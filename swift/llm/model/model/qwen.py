@@ -558,6 +558,15 @@ def get_model_tokenizer_qwen2_audio(*args, **kwargs):
     kwargs['automodel_class'] = kwargs['automodel_class'] or Qwen2AudioForConditionalGeneration
     return get_model_tokenizer_multimodal(*args, **kwargs)
 
+def get_model_tokenizer_qgc_qwen2_audio(*args, **kwargs):
+    from swift.llm.model.qgc_models.modeling_qgcqwen2audio import QGCQwen2AudioForConditionalGeneration
+    kwargs['automodel_class'] = QGCQwen2AudioForConditionalGeneration
+    model, processor =  get_model_tokenizer_multimodal(*args, **kwargs)
+    processor.tokenizer.add_special_tokens({'additional_special_tokens': ['<|startofcontext|>', '<|endofcontext|>']})
+    model.audio_bos_token_id, model.audio_eos_token_id, model.context_bos_token_id, model.context_eos_token_id = processor.tokenizer.convert_tokens_to_ids(['<|audio_bos|>', '<|audio_eos|>', '<|startofcontext|>', '<|endofcontext|>'])
+    # if model is not None:
+    #     fix_qwen_inplace_bug(model)
+    return model, processor
 
 register_model(
     ModelMeta(
@@ -570,6 +579,18 @@ register_model(
         ],
         TemplateType.qwen2_audio,
         get_model_tokenizer_qwen2_audio,
+        model_arch=ModelArch.qwen2_audio,
+        architectures=['Qwen2AudioForConditionalGeneration'],
+        requires=['transformers>=4.45', 'librosa'],
+        tags=['audio'],
+    ))
+
+register_model(
+    ModelMeta(
+        MLLMModelType.qgc_qwen2_audio,
+        [],
+        TemplateType.qwen2_audio,
+        get_model_tokenizer_qgc_qwen2_audio,
         model_arch=ModelArch.qwen2_audio,
         architectures=['Qwen2AudioForConditionalGeneration'],
         requires=['transformers>=4.45', 'librosa'],
