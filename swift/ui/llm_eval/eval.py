@@ -1,4 +1,4 @@
-import os.path
+# Copyright (c) Alibaba, Inc. and its affiliates.
 from typing import Type
 
 import gradio as gr
@@ -14,16 +14,6 @@ class Eval(BaseUI):
     group = 'llm_eval'
 
     locale_dict = {
-        'name': {
-            'label': {
-                'zh': '评测名称',
-                'en': 'Evaluation name'
-            },
-            'info': {
-                'zh': '支持英文字母、下划线、横线和数字',
-                'en': 'Support characters, underscores, hyphens and numbers'
-            }
-        },
         'eval_dataset': {
             'label': {
                 'zh': '评测数据集',
@@ -32,16 +22,6 @@ class Eval(BaseUI):
             'info': {
                 'zh': '选择评测数据集，支持多选',
                 'en': 'Select eval dataset, multiple datasets supported'
-            }
-        },
-        'eval_few_shot': {
-            'label': {
-                'zh': 'prompt的few-shot',
-                'en': 'The few-shot for the prompt'
-            },
-            'info': {
-                'zh': 'Few-shot数量在评测集中有默认设置，可以不填',
-                'en': 'Few-shot numbers have default values in different datasets'
             }
         },
         'eval_limit': {
@@ -54,14 +34,14 @@ class Eval(BaseUI):
                 'en': 'Number of rows sampled from each dataset'
             }
         },
-        'eval_use_cache': {
+        'eval_output_dir': {
             'label': {
-                'zh': '使用缓存',
-                'en': 'Use eval cache'
+                'zh': '评测输出目录',
+                'en': 'Eval output dir'
             },
             'info': {
-                'zh': '如果name指定的评测已经存在，则可以使用已有缓存',
-                'en': 'If the evaluation results of the name exists, you may use cache.'
+                'zh': '评测结果的输出目录',
+                'en': 'The dir to save the eval results'
             }
         },
         'custom_eval_config': {
@@ -81,26 +61,20 @@ class Eval(BaseUI):
             },
             'info': {
                 'zh':
-                'OpenAI样式的评测链接(如：http://localhost:8080/v1)，用于评测接口（模型类型输入为实际模型类型）',
+                'OpenAI样式的评测链接(如：http://localhost:8080/v1/chat/completions)，用于评测接口（模型类型输入为实际模型类型）',
                 'en':
-                'The OpenAI style link(like: http://localhost:8080/v1) for '
+                'The OpenAI style link(like: http://localhost:8080/v1/chat/completions) for '
                 'evaluation(Input actual model type into model_type)'
             }
         },
-        'eval_token': {
+        'api_key': {
             'label': {
-                'zh': 'Url token',
+                'zh': '接口token',
                 'en': 'The url token'
             },
-        },
-        'eval_is_chat_model': {
-            'label': {
-                'zh': '接口是chat模型',
-                'en': 'Chat model'
-            },
             'info': {
-                'zh': '评测接口是否是Chat模型',
-                'en': 'The eval url is a chat model or not'
+                'zh': 'eval_url的token',
+                'en': 'The token used with eval_url'
             }
         },
         'infer_backend': {
@@ -118,8 +92,12 @@ class Eval(BaseUI):
             from evalscope.backend.vlm_eval_kit import VLMEvalKitBackendManager
             eval_dataset_list = (
                 OpenCompassBackendManager.list_datasets() + VLMEvalKitBackendManager.list_supported_datasets())
+            logger.warn('If you encounter an error message👆🏻👆🏻👆🏻 of `.env` file, please ignore.')
         except Exception as e:
-            logger.error(e)
+            logger.warn(e)
+            logger.warn(
+                ('The error message 👆🏻👆🏻👆🏻above will have no bad effects, '
+                 'only means evalscope is not installed, and default eval datasets will be listed in the web-ui.'))
             eval_dataset_list = [
                 'AX_b', 'cmb', 'winogrande', 'mmlu', 'afqmc', 'COPA', 'commonsenseqa', 'CMRC', 'lcsts', 'nq',
                 'ocnli_fc', 'math', 'mbpp', 'DRCD', 'TheoremQA', 'CB', 'ReCoRD', 'lambada', 'tnews', 'flores',
@@ -146,7 +124,6 @@ class Eval(BaseUI):
             ]
 
         with gr.Row():
-            gr.Textbox(elem_id='name', scale=20)
             gr.Dropdown(
                 elem_id='eval_dataset',
                 is_list=True,
@@ -154,13 +131,10 @@ class Eval(BaseUI):
                 multiselect=True,
                 allow_custom_value=True,
                 scale=20)
-            gr.Textbox(elem_id='eval_few_shot', scale=20)
             gr.Textbox(elem_id='eval_limit', scale=20)
-            gr.Checkbox(elem_id='eval_use_cache', scale=20)
             gr.Dropdown(elem_id='infer_backend', scale=20)
         with gr.Row():
             gr.Textbox(elem_id='custom_eval_config', scale=20)
-        with gr.Row():
+            gr.Textbox(elem_id='eval_output_dir', scale=20)
             gr.Textbox(elem_id='eval_url', scale=20)
-            gr.Textbox(elem_id='eval_token', scale=20)
-            gr.Checkbox(elem_id='eval_is_chat_model', scale=20)
+            gr.Textbox(elem_id='api_key', scale=20)

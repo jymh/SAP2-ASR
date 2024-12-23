@@ -12,6 +12,38 @@ from .logger import get_logger
 logger = get_logger()  # pylint: disable=invalid-name
 
 
+def is_vllm_available():
+    return importlib.util.find_spec('vllm') is not None
+
+
+def is_merge_kit_available():
+    return importlib.util.find_spec('mergekit') is not None
+
+
+def is_lmdeploy_available():
+    return importlib.util.find_spec('lmdeploy') is not None
+
+
+def is_liger_available():
+    return importlib.util.find_spec('liger_kernel') is not None
+
+
+def is_xtuner_available():
+    return importlib.util.find_spec('xtuner') is not None
+
+
+def is_megatron_available():
+    return importlib.util.find_spec('megatron') is not None
+
+
+def is_unsloth_available() -> bool:
+    return importlib.util.find_spec('unsloth') is not None
+
+
+def is_pyreft_available() -> bool:
+    return importlib.util.find_spec('pyreft') is not None
+
+
 class _LazyModule(ModuleType):
     """
     Module class that surfaces all objects but only performs associated imports when the objects are requested.
@@ -60,12 +92,7 @@ class _LazyModule(ModuleType):
         return value
 
     def _get_module(self, module_name: str):
-        try:
-            return importlib.import_module('.' + module_name, self.__name__)
-        except Exception as e:
-            raise RuntimeError(
-                f'Failed to import {self.__name__}.{module_name} because of the following error (look up to see its'
-                f' traceback):\n{e}') from e
+        return importlib.import_module('.' + module_name, self.__name__)
 
     def __reduce__(self):
         return self.__class__, (self._name, self.__file__, self._import_structure)
