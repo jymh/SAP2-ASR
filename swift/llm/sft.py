@@ -551,6 +551,7 @@ def get_sft_main(args, llm):
             ta.accelerate_hf_trainer()
     return get_main(args, llm)
 
-
+# torch.multiprocessing.set_start_method('spawn', force=True)
+# torch.autograd.set_detect_anomaly(True)
 sft_main = get_sft_main(SftArguments, llm_sft)
 pt_main = get_sft_main(PtArguments, llm_sft)
