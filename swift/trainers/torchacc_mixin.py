@@ -4,12 +4,14 @@ import shutil
 from typing import Optional
 
 from transformers import PreTrainedModel, is_datasets_available
+from transformers.integrations import is_deepspeed_zero3_enabled
 
 from swift.utils import use_torchacc
 from swift.utils.torchacc_utils import (patch_clip_grad_norm, save_ta_ddp_checkpoint, save_ta_fsdp_checkpoint,
                                         ta_eval_dataloader, ta_load_optimizer_and_scheduler,
                                         ta_save_optimizer_and_scheduler, ta_test_dataloader, ta_train_dataloader,
                                         ta_trim_graph)
+from swift.tuners import SwiftModel
 
 
 class TorchAccMixin:
@@ -144,13 +146,17 @@ class TorchAccMixin:
         super()._maybe_log_save_evaluate(tr_loss, *args, **kwargs)
 
     def _load_from_checkpoint(self, resume_from_checkpoint: str, model=None) -> None:
+        if model is None:
+            model = self.model
         if use_torchacc():
-            if model is None:
-                model = self.model
             # Loading checkpoint of TorchAcc has been done in tuner.py when
             # sft_type is 'full'.
-            if self.args.fsdp_num > 1:
+            if self.sft_args.fsdp_num > 1:
                 model = model._get_underlay_model().module.module
             if isinstance(model, PreTrainedModel):
                 return
-        return super()._load_from_checkpoint(resume_from_checkpoint, model)
+        elif isinstance(model, SwiftModel) or is_deepspeed_zero3_enabled() and isinstance(model, PreTrainedModel):
+            return
+        else:
+            # Avoid throwing exceptions
+            return super()._load_from_checkpoint(resume_from_checkpoint, model)

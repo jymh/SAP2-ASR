@@ -160,7 +160,8 @@ class SwiftSft(SwiftPipeline, TunerMixin):
         training_args = trainer.args
         state = trainer.state
 
-        logger.info(f'last_model_checkpoint: {state.last_model_checkpoint}')
+        last_model_checkpoint = getattr(state, 'last_model_checkpoint', None)
+        logger.info(f'last_model_checkpoint: {last_model_checkpoint}')
         logger.info(f'best_model_checkpoint: {state.best_model_checkpoint}')
 
         # Visualization
@@ -173,7 +174,7 @@ class SwiftSft(SwiftPipeline, TunerMixin):
                 trainer.push_to_hub()
 
         self.train_msg.update({
-            'last_model_checkpoint': state.last_model_checkpoint,
+            'last_model_checkpoint': last_model_checkpoint,
             'best_model_checkpoint': state.best_model_checkpoint,
             'best_metric': state.best_metric,
             'global_step': state.global_step,
