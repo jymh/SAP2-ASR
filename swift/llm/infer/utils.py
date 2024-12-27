@@ -141,6 +141,13 @@ def _prepare_adapter(args, model):
 
 
 def prepare_model_template(args, **kwargs):
+    kwargs = {}
+    if args.qgc_window_size is not None:
+        kwargs["qgc_window_size"] = args.qgc_window_size
+    if args.compressor_hidden_size is not None:
+        kwargs["compressor_hidden_size"] = args.compressor_hidden_size
+    if args.num_attention_heads is not None:
+        kwargs["num_attention_heads"] = args.num_attention_heads
     model, processor = args.get_model_processor(**kwargs)
     model = _prepare_adapter(args, model)
     template = args.get_template(processor)

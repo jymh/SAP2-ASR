@@ -9,7 +9,8 @@ from torch import nn
 
 from transformers import Qwen2AudioForConditionalGeneration, Qwen2AudioConfig
 from transformers.models.qwen2_audio.modeling_qwen2_audio import Qwen2AudioCausalLMOutputWithPast
-
+from transformers.modeling_outputs import ModelOutput
+from transformers.cache_utils import Cache
 
 # def fix_window_size_pooling(hidden_states, attention_mask, weights):
 #     bsz, pooled_length, window_size, hidden_size = hidden_states.size()
@@ -738,250 +739,127 @@ class QGCQwen2AudioForConditionalGeneration(Qwen2AudioForConditionalGeneration):
             attention_mask=attention_mask,
         )
 
-    # def forward(
-    #     self,
-    #     input_ids: torch.LongTensor = None,
-    #     input_features: torch.FloatTensor = None,
-    #     attention_mask: Optional[torch.Tensor] = None,
-    #     feature_attention_mask: Optional[torch.Tensor] = None,
-    #     position_ids: Optional[torch.LongTensor] = None,
-    #     past_key_values: Optional[List[torch.FloatTensor]] = None,
-    #     inputs_embeds: Optional[torch.FloatTensor] = None,
-    #     labels: Optional[torch.LongTensor] = None,
-    #     use_cache: Optional[bool] = None,
-    #     output_attentions: Optional[bool] = None,
-    #     output_hidden_states: Optional[bool] = None,
-    #     return_dict: Optional[bool] = None,
-    # ) -> Union[Tuple, Qwen2AudioCausalLMOutputWithPast]:
-    #     r"""
-    #     Args:
-    #         labels (`torch.LongTensor` of shape `(batch_size, sequence_length)`, *optional*):
-    #             Labels for computing the masked language modeling loss. Indices should either be in `[0, ...,
-    #             config.vocab_size]` or -100 (see `input_ids` docstring). Tokens with indices set to `-100` are ignored
-    #             (masked), the loss is only computed for the tokens with labels in `[0, ..., config.vocab_size]`.
+    def prepare_inputs_for_generation(
+        self,
+        input_ids,
+        past_key_values=None,
+        inputs_embeds=None,
+        input_features=None,
+        attention_mask=None,
+        **kwargs,
+    ):
+        # Overwritten -- custom processing (note: might not be needed, but there are no generation tests running atm)
 
-    #     Returns:
+        if past_key_values is not None:
+            # if isinstance(past_key_values, Cache):
+            #     cache_length = past_key_values.get_seq_length()
+            #     past_length = past_key_values.seen_tokens
+            # else:
+            #     cache_length = past_length = past_key_values[0][0].shape[2]
 
-    #     Example:
+            # # Here, we get the attention_mask, which was previously stored in the state after _merge_input_ids_with_audio_features.
+            # if input_features is not None and kwargs.get("attention_mask") is not None:
+            #     attention_mask = kwargs["attention_mask"]
+            #     attention_mask = torch.cat(
+            #         [attention_mask, attention_mask.new_ones((attention_mask.shape[0], 1))], dim=-1
+            #     )
 
-    #     ```python
-    #     >>> from io import BytesIO
-    #     >>> from urllib.request import urlopen
-    #     >>> import librosa
-    #     >>> from transformers import AutoProcessor, Qwen2AudioForConditionalGeneration
-
-    #     >>> model = Qwen2AudioForConditionalGeneration.from_pretrained("Qwen/Qwen2-Audio-7B")
-    #     >>> processor = AutoProcessor.from_pretrained("Qwen/Qwen2-Audio-7B")
-
-    #     >>> prompt = "<|audio_bos|><|AUDIO|><|audio_eos|>Generate the caption in English:"
-    #     >>> url = "https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen2-Audio/audio/glass-breaking-151256.mp3"
-    #     >>> audio, _ = librosa.load(BytesIO(urlopen(url).read()), sr=self.processor.feature_extractor.sampling_rate)
-
-    #     >>> inputs = processor(text=prompt, audios=audio, return_tensors="pt")
-
-    #     >>> # Generate
-    #     >>> generate_ids = model.generate(**inputs, max_length=30)
-    #     >>> processor.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
-    #     "Generate the caption in English: Glass is breaking."
-    #     ```"""
-
-    #     output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
-    #     output_hidden_states = (
-    #         output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
-    #     )
-    #     return_dict = return_dict if return_dict is not None else self.config.use_return_dict
-
-    #     target_device = self.audio_tower.device
-
-    #     if input_features is not None:
-    #         input_features = input_features.to(target_device)
-    #         feature_attention_mask = feature_attention_mask.to(target_device)
-
-        
-    #     if inputs_embeds is None:
-    #         # # 1. Extract the input embeddings
-    #         inputs_embeds = self.get_input_embeddings()(input_ids)
+            # # Keep only the unprocessed tokens:
+            # # 1 - If the length of the attention_mask exceeds the length of input_ids, then we are in a setting where
+            # # some of the inputs are exclusively passed as part of the cache (e.g. when passing input_embeds as
+            # # input)
+            # if attention_mask is not None and attention_mask.shape[1] > input_ids.shape[1]:
+            #     input_ids = input_ids[:, -(attention_mask.shape[1] - past_length) :]
+            # # 2 - If the past_length is smaller than input_ids', then input_ids holds all input tokens. We can discard
+            # # input_ids based on the past_length.
+            # elif past_length < input_ids.shape[1]:
+            #     input_ids = input_ids[:, past_length:]
+            # # 3 - Otherwise (past_length >= input_ids.shape[1]), let's assume input_ids only has unprocessed tokens.
+            # elif self.config.audio_token_index in input_ids:
+            #     input_ids = input_ids[:, input_ids.shape[1] - 1 :]
+            # # If the cache has seen more tokens than it can hold, then the cache has a size limit. Let's discard the
+            # # older attention values, as their corresponding values are not part of the input.
+            # if cache_length < past_length and attention_mask is not None:
+            #     attention_mask = attention_mask[:, -(cache_length + input_ids.shape[1]) :]
             
-    #         batch_size, sequence_length = input_ids.shape
-    #         _left_padding = torch.any(attention_mask[:, 0] == 0)
-    #         _right_padding = torch.any(attention_mask[:, -1] == 0)
+            # TODO: consider more complicated scenarios
+            # With QGC, sequence length of inputs_embeds is not equal to input_ids after the first forward. Only consider the last token.
+            input_ids = input_ids[:, input_ids.shape[1] - 1 :]
 
-            
-    #         # calculate true text label beginning position
-    #         valid_label_mask = labels != -100
-    #         first_label_indices = valid_label_mask.float().argmax(dim=-1)
-            
-    #         if not valid_label_mask.any(dim=-1).all():
-    #             raise ValueError("No valid text label for training!")
-        
-    #         '''
-    #         input_ids: <|im_start|>system\n system prompt <|im_end|>\n<|im_start|>user\nAudio 1: <|audio_bos|><|AUDIO|><|audio_eos|>\n PROMPT CONTEXT<|im_end|>\n<|im_start|>assistant\n VALID LABEL...
-    #         '''
-            
-    #         # find the first eos_token before valid label
-    #         eos_mask = input_ids == self.config.text_config.eos_token_id
-    #         prompt_eos_positions = torch.full((batch_size,), -1, dtype=torch.long, device=input_ids.device)
-    #         for i in range(batch_size):
-    #             first_label_idx = first_label_indices[i]
-    #             eos_position_candidates = torch.where(eos_mask[i, :first_label_idx])[0]
-    #             if len(eos_position_candidates) > 0:
-    #                 prompt_eos_positions[i] = eos_position_candidates[-1]
-            
-    #         audio_eos_mask = input_ids == self.audio_eos_token_id
-    #         audio_eos_positions = torch.full((batch_size,), -1, dtype=torch.long, device=input_ids.device)
-            
-    #         # find the audio_eos_token, assert that there is only one audio in each training sample
-    #         for i in range(batch_size):
-    #             audio_eos_candidates = torch.where(audio_eos_mask[i, :prompt_eos_positions[i]])[0]
-    #             if len(audio_eos_candidates) > 0:
-    #                 audio_eos_positions[i] = audio_eos_candidates[-1]
-    #         prompt_start_positions = audio_eos_positions + 2
-            
-    #         # Prepare input for qgc compression, only compress context prompts.
-    #         input_ids_before_prompt = [input_ids[i, :prompt_start_positions[i]] for i in range(batch_size)]
-    #         input_ids_prompt = [input_ids[i, prompt_start_positions[i]:prompt_eos_positions[i]] for i in range(batch_size)]
-    #         input_ids_after_prompt = [input_ids[i, prompt_eos_positions[i]:] for i in range(batch_size)]
-            
-    #         # inputs_embeds_before_prompt = [inputs_embeds[i, :prompt_start_positions[i]] for i in range(batch_size)]
-    #         inputs_embeds_prompt = [inputs_embeds[i, prompt_start_positions[i]:prompt_eos_positions[i]] for i in range(batch_size)]
-    #         # inputs_embeds_after_prompt = [inputs_embeds[i, prompt_eos_positions[i]:] for i in range(batch_size)]
-            
-    #         # attention_mask_before_prompt = [attention_mask[i, :prompt_start_positions[i]] for i in range(batch_size)]
-    #         # attention_mask_prompt = [attention_mask[i, prompt_start_positions[i]:prompt_eos_positions[i]] for i in range(batch_size)]
-    #         # attention_mask_after_prompt = [attention_mask[i, prompt_eos_positions[i]:] for i in range(batch_size)]
-            
-    #         # labels_before_prompt = [labels[i, :prompt_start_positions[i]] for i in range(batch_size)]
-    #         # labels_prompt = [labels[i, prompt_start_positions[i]:prompt_eos_positions[i]] for i in range(batch_size)]
-    #         # labels_after_prompt = [labels[i, prompt_eos_positions[i]:] for i in range(batch_size)]
-            
-    #         max_prmopt_length = max([seq.size(0) for seq in input_ids_prompt])
-    #         padded_inputs_embeds_prompt = torch.full((len(input_ids_prompt), max_prmopt_length, inputs_embeds.size(2)), fill_value=0, dtype=inputs_embeds.dtype, device=inputs_embeds.device)
-    #         padded_input_ids_prompt = torch.full((len(input_ids_prompt), max_prmopt_length), fill_value=0, dtype=input_ids.dtype, device=input_ids.device)
-    #         for i in range(batch_size):
-    #             padded_inputs_embeds_prompt[i, :prompt_eos_positions[i] - prompt_start_positions[i]] = inputs_embeds[i, prompt_start_positions[i] : prompt_eos_positions[i]]
-    #             padded_input_ids_prompt[i, :prompt_eos_positions[i] - prompt_start_positions[i]] = input_ids[i, prompt_start_positions[i] : prompt_eos_positions[i]]
-    #         prompt_attention_mask = (padded_input_ids_prompt != 0).long()
+        position_ids = kwargs.get("position_ids", None)
+        if attention_mask is not None and position_ids is None:
+            # create position_ids on the fly for batch generation
+            position_ids = attention_mask.long().cumsum(-1) - 1
+            position_ids.masked_fill_(attention_mask == 0, 1)
+            if past_key_values:
+                position_ids = position_ids[:, -input_ids.shape[1] :]
 
-    #         # 2. Merge text and audios
-    #         if input_features is not None and input_ids.shape[1] != 1:
-    #             audio_feat_lengths, audio_output_lengths = self.audio_tower._get_feat_extract_output_lengths(
-    #                 feature_attention_mask.sum(-1)
-    #             )
-    #             batch_size, _, max_mel_seq_len = input_features.shape
-    #             max_seq_len = (max_mel_seq_len - 2) // 2 + 1
-    #             # Create a sequence tensor of shape (batch_size, max_seq_len)
-    #             seq_range = (
-    #                 torch.arange(0, max_seq_len, dtype=audio_feat_lengths.dtype, device=audio_feat_lengths.device)
-    #                 .unsqueeze(0)
-    #                 .expand(batch_size, max_seq_len)
-    #             )
-    #             lengths_expand = audio_feat_lengths.unsqueeze(1).expand(batch_size, max_seq_len)
-    #             # Create mask
-    #             padding_mask = seq_range >= lengths_expand
+        # if `inputs_embeds` are passed, we only want to use them in the 1st generation step
+        if inputs_embeds is not None and past_key_values is None:
+            model_inputs = {"inputs_embeds": inputs_embeds}
+        else:
+            model_inputs = {"input_ids": input_ids}
 
-    #             audio_attention_mask_ = padding_mask.reshape(batch_size, 1, 1, max_seq_len).expand(
-    #                 batch_size, 1, max_seq_len, max_seq_len
-    #             )
-    #             audio_attention_mask = audio_attention_mask_.to(
-    #                 dtype=self.audio_tower.conv1.weight.dtype, device=self.audio_tower.conv1.weight.device
-    #             )
-    #             audio_attention_mask[audio_attention_mask_] = float("-inf")
+        feature_attention_mask = kwargs.get("feature_attention_mask", None)
+        model_inputs.update(
+            {
+                "position_ids": position_ids,
+                "past_key_values": past_key_values,
+                "use_cache": kwargs.get("use_cache"),
+                "attention_mask": attention_mask,
+                "input_features": input_features,
+                "feature_attention_mask": feature_attention_mask,
+            }
+        )
+        return model_inputs
 
-    #             audio_outputs = self.audio_tower(input_features, attention_mask=audio_attention_mask)
-    #             selected_audio_feature = audio_outputs.last_hidden_state
-    #             audio_features = self.multi_modal_projector(selected_audio_feature)
-                
-    #             num_audios, max_audio_tokens, embed_dim = audio_features.shape
-    #             audio_features_mask = torch.arange(max_audio_tokens).expand(num_audios, max_audio_tokens).to(
-    #                 audio_output_lengths.device
-    #             ) < audio_output_lengths.unsqueeze(1)
-                
-                
-    #             # qgc compress
-    #             # qgc_inputs_embeds, qgc_attention_mask = self.qgc_pooling_layer(audio_features, padded_inputs_embeds_prompt, audio_features_mask, prompt_attention_mask, window_size=self.qgc_window_size)
-    #             # qgc_inputs_embeds, qgc_attention_mask = qgc_inputs_embeds.to(inputs_embeds.device), qgc_attention_mask.to(inputs_embeds.device)
-    #             # qgc_attention_mask = torch.where(qgc_attention_mask == 0, torch.tensor(-1, dtype=qgc_attention_mask.dtype), qgc_attention_mask).to(inputs_embeds.device)
-                
-    #             # qgc_inputs_embeds = padded_inputs_embeds_prompt
-    #             # qgc_attention_mask = prompt_attention_mask
-                
-    #             qgc_inputs_embeds = self.qgc_pooling_layer.q_proj(padded_inputs_embeds_prompt)
-    #             qgc_inputs_embeds = self.qgc_pooling_layer.k_proj(qgc_inputs_embeds)
-    #             qgc_attention_mask = prompt_attention_mask
-                
-                
-    #             before_prompt_lengths = torch.tensor([seq.size(0) for seq in input_ids_before_prompt], device=inputs_embeds.device)
-    #             after_prompt_lengths = torch.tensor([seq.size(0) for seq in input_ids_after_prompt], device=inputs_embeds.device)
-    #             qgc_prompt_lengths = qgc_inputs_embeds.size(1)
-    #             # qgc_prompt_lengths = qgc_attention_mask.sum(dim=-1).to(inputs_embeds.device)
+    def _update_model_kwargs_for_generation(
+        self,
+        outputs: ModelOutput,
+        model_kwargs: Dict[str, Any],
+        is_encoder_decoder: bool = False,
+        num_new_tokens: int = 1,
+    ) -> Dict[str, Any]:
+        # update past_key_values keeping its naming used in model code
+        cache_name, cache = self._extract_past_from_model_output(outputs)
+        model_kwargs[cache_name] = cache
+        if getattr(outputs, "state", None) is not None:
+            model_kwargs["state"] = outputs.state
 
-    #             final_lengths = before_prompt_lengths + after_prompt_lengths + qgc_prompt_lengths
-    #             max_final_length = final_lengths.max().item()
-                
-    #             final_input_embeds = torch.zeros(batch_size, max_final_length, inputs_embeds.size(2), dtype=inputs_embeds.dtype, device=inputs_embeds.device)
-    #             final_attention_mask = torch.zeros(batch_size, max_final_length, dtype=attention_mask.dtype, device=inputs_embeds.device)
-    #             final_labels = torch.full((batch_size, max_final_length), fill_value=self.config.ignore_index, dtype=labels.dtype, device=labels.device)
-    #             final_input_ids = torch.full((batch_size, max_final_length), fill_value=self.pad_token_id, dtype=input_ids.dtype, device=input_ids.device)
+        # update attention_mask
+        if getattr(outputs, "attention_mask", None) is not None:
+            model_kwargs["attention_mask"] = outputs.attention_mask
 
- 
-    #             for i in range(batch_size):
-    #                 final_input_embeds[i, :before_prompt_lengths[i]] = inputs_embeds[i, :before_prompt_lengths[i]]
-    #                 final_attention_mask[i, :before_prompt_lengths[i]] = attention_mask[i, :before_prompt_lengths[i]]
-    #                 final_labels[i, :before_prompt_lengths[i]] = labels[i, :before_prompt_lengths[i]]
-    #                 final_input_ids[i, :before_prompt_lengths[i]] = input_ids[i, :before_prompt_lengths[i]]
-                    
-    #                 final_input_embeds[i, before_prompt_lengths[i]:before_prompt_lengths[i] + qgc_prompt_lengths] = qgc_inputs_embeds[i]
-    #                 final_attention_mask[i, before_prompt_lengths[i]:before_prompt_lengths[i] + qgc_prompt_lengths] = qgc_attention_mask[i]
-    #                 final_labels[i, before_prompt_lengths[i]:before_prompt_lengths[i] + qgc_prompt_lengths] = torch.full((qgc_prompt_lengths,), fill_value=-100, dtype=final_labels.dtype, device=final_labels.device)
+        # update token_type_ids with last value
+        if "token_type_ids" in model_kwargs:
+            token_type_ids = model_kwargs["token_type_ids"]
+            model_kwargs["token_type_ids"] = torch.cat([token_type_ids, token_type_ids[:, -1].unsqueeze(-1)], dim=-1)
 
-    #                 final_input_embeds[i, before_prompt_lengths[i] + qgc_prompt_lengths:before_prompt_lengths[i] + qgc_prompt_lengths + after_prompt_lengths[i]] = inputs_embeds[i, prompt_eos_positions[i]:]
-    #                 final_attention_mask[i, before_prompt_lengths[i] + qgc_prompt_lengths:before_prompt_lengths[i] + qgc_prompt_lengths + after_prompt_lengths[i]] = attention_mask[i, prompt_eos_positions[i]:]
-    #                 final_labels[i, before_prompt_lengths[i] + qgc_prompt_lengths:before_prompt_lengths[i] + qgc_prompt_lengths + after_prompt_lengths[i]] = labels[i, prompt_eos_positions[i]:]
-    #                 final_input_ids[i, before_prompt_lengths[i] + qgc_prompt_lengths:before_prompt_lengths[i] + qgc_prompt_lengths + after_prompt_lengths[i]] = input_ids[i, prompt_eos_positions[i]:]
+        if not is_encoder_decoder:
+            # update attention mask
+            if "attention_mask" in model_kwargs:
+                attention_mask = model_kwargs["attention_mask"]
+                model_kwargs["attention_mask"] = torch.cat(
+                    [attention_mask, attention_mask.new_ones((attention_mask.shape[0], 1))], dim=-1
+                )
+        else:
+            # update decoder attention mask
+            if "decoder_attention_mask" in model_kwargs:
+                decoder_attention_mask = model_kwargs["decoder_attention_mask"]
+                model_kwargs["decoder_attention_mask"] = torch.cat(
+                    [decoder_attention_mask, decoder_attention_mask.new_ones((decoder_attention_mask.shape[0], 1))],
+                    dim=-1,
+                )
 
+        if model_kwargs.get("use_cache", True):
+            model_kwargs["cache_position"] = model_kwargs["cache_position"][-1:] + num_new_tokens
+        else:
+            past_positions = model_kwargs.pop("cache_position")
+            new_positions = torch.arange(
+                past_positions[-1] + 1, past_positions[-1] + num_new_tokens + 1, dtype=past_positions.dtype
+            ).to(past_positions.device)
+            model_kwargs["cache_position"] = torch.cat((past_positions, new_positions))
+        return model_kwargs
 
-    #             inputs_embeds, attention_mask, labels, position_ids, _ = self._merge_input_ids_with_audio_features(
-    #                 audio_features, audio_output_lengths, final_input_embeds, final_input_ids, final_attention_mask, final_labels
-    #             )                
-
-    #     outputs = self.language_model(
-    #         attention_mask=attention_mask,
-    #         position_ids=position_ids,
-    #         past_key_values=past_key_values,
-    #         inputs_embeds=inputs_embeds,
-    #         use_cache=use_cache,
-    #         output_attentions=output_attentions,
-    #         output_hidden_states=output_hidden_states,
-    #         return_dict=return_dict,
-    #     )
-
-    #     logits = outputs[0]
-
-    #     loss = None
-    #     if labels is not None:
-    #         # Shift so that tokens < n predict n
-    #         if attention_mask is not None:
-    #             shift_attention_mask = attention_mask[..., 1:]
-    #             shift_logits = logits[..., :-1, :][shift_attention_mask.to(logits.device) != 0].contiguous()
-    #             shift_labels = labels[..., 1:][shift_attention_mask.to(labels.device) != 0].contiguous()
-    #         else:
-    #             shift_logits = logits[..., :-1, :].contiguous()
-    #             shift_labels = labels[..., 1:].contiguous()
-    #         # Flatten the tokens
-    #         loss_fct = nn.CrossEntropyLoss()
-    #         loss = loss_fct(
-    #             shift_logits.reshape(-1, shift_logits.size(-1)), shift_labels.reshape(-1).to(shift_logits.device)
-    #         )
-
-    #     if not return_dict:
-    #         output = (logits,) + outputs[1:]
-    #         return (loss,) + output if loss is not None else output
-
-    #     return Qwen2AudioCausalLMOutputWithPast(
-    #         loss=loss,
-    #         logits=logits,
-    #         past_key_values=outputs.past_key_values,
-    #         hidden_states=outputs.hidden_states,
-    #         attentions=outputs.attentions,
-    #         attention_mask=attention_mask,
-    #     )
+    def _reorder_cache(self, *args, **kwargs):
+        return self.language_model._reorder_cache(*args, **kwargs)
