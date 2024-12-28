@@ -67,11 +67,11 @@ class Qwen2AudioQGCPoolingLayer(nn.Module):
         self.hidden_size = compressor_hidden_size
         self.num_heads = num_attention_heads
         self.head_dim = self.hidden_size // self.num_heads
-        self.q_proj = nn.Linear(self.hidden_size, self.num_heads * self.head_dim, bias=False)
-        self.k_proj = nn.Linear(self.hidden_size, self.num_heads * self.head_dim, bias=False)
+        # self.q_proj = nn.Linear(self.hidden_size, self.num_heads * self.head_dim, bias=False)
+        # self.k_proj = nn.Linear(self.hidden_size, self.num_heads * self.head_dim, bias=False)
         self.semantic_alignment_layer = nn.Linear(self.hidden_size, 4096)  # project to LLM dimension
-        self.contxt_layernorm = nn.LayerNorm(compressor_hidden_size)
-        self.audio_layernorm = nn.LayerNorm(compressor_hidden_size)
+        # self.contxt_layernorm = nn.LayerNorm(compressor_hidden_size)
+        # self.audio_layernorm = nn.LayerNorm(compressor_hidden_size)
         
         
     def forward(self, audio_hidden_states, contxt_hidden_states, enc_audio_mask, enc_contxt_mask, window_size=None, **kwargs):
@@ -105,10 +105,12 @@ class Qwen2AudioQGCPoolingLayer(nn.Module):
         audio_hidden_states = audio_hidden_states.masked_fill(~enc_audio_mask[..., None].bool(), 0.0)
         # audio_hidden_states = self.audio_layernorm(audio_hidden_states)
         
-        audio_hidden_states = self.audio_layernorm(audio_hidden_states)
-        contxt_hidden_states = self.contxt_layernorm(contxt_hidden_states)
-        query_states = self.q_proj(audio_hidden_states).contiguous().reshape(bsz, -1, self.num_heads, self.head_dim).transpose(1, 2) # query_states: (bsz, num_heads, audio_length, head_dim)
-        key_states = self.k_proj(contxt_hidden_states).contiguous().reshape(bsz, -1, self.num_heads, self.head_dim).transpose(1, 2) # key_states: (bsz, num_heads, contxt_length, head_dim)
+        # audio_hidden_states = self.audio_layernorm(audio_hidden_states)
+        # contxt_hidden_states = self.contxt_layernorm(contxt_hidden_states)
+        # query_states = self.q_proj(audio_hidden_states).contiguous().reshape(bsz, -1, self.num_heads, self.head_dim).transpose(1, 2) # query_states: (bsz, num_heads, audio_length, head_dim)
+        # key_states = self.k_proj(contxt_hidden_states).contiguous().reshape(bsz, -1, self.num_heads, self.head_dim).transpose(1, 2) # key_states: (bsz, num_heads, contxt_length, head_dim)
+        query_states = audio_hidden_states.contiguous().reshape(bsz, -1, self.num_heads, self.head_dim).transpose(1, 2) # query_states: (bsz, num_heads, audio_length, head_dim)
+        key_states = contxt_hidden_states.contiguous().reshape(bsz, -1, self.num_heads, self.head_dim).transpose(1, 2) # key_states: (bsz, num_heads, contxt_length, head_dim)
         # value_states = contxt_hidden_states.reshape(bsz, -1, self.num_heads, self.head_dim)
         
         pooling_weights = torch.einsum('bnqh,bnkh->bnqk', query_states, key_states) / math.sqrt(self.head_dim) # pooling_weights: (bsz, num_heads, audio_length, contxt_length)
