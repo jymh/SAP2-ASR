@@ -32,9 +32,10 @@ class Seq2SeqTrainingOverrideArguments(Seq2SeqTrainingArguments):
     lr_scheduler_kwargs: Optional[Union[dict, str]] = None
     gradient_checkpointing_kwargs: Optional[Union[dict, str]] = None
     report_to: List[str] = field(default_factory=lambda: ['tensorboard'])
+    eval_strategy: Optional[str] = None  # steps, epoch
+
     remove_unused_columns: bool = False
     logging_first_step: bool = True
-    eval_strategy: Optional[str] = None  # steps, epoch
 
     def _init_output_dir(self):
         if self.output_dir is not None:
@@ -97,7 +98,6 @@ class TrainArguments(TorchAccArguments, TunerArguments, Seq2SeqTrainingOverrideA
         resume_only_model (bool): Flag to resume training only the model. Default is False.
         check_model (bool): Flag to check the model is latest. Default is True.
         loss_type (Optional[str]): Type of loss function to use. Default is None.
-        num_labels (Optional[int]): Number of labels for classification tasks. Default is None.
         packing (bool): Flag to enable packing of datasets. Default is False.
         lazy_tokenize (Optional[bool]): Flag to enable lazy tokenization. Default is None.
         acc_strategy (Literal['token', 'seq']): Strategy for accumulation. Default is 'token'.
@@ -109,11 +109,15 @@ class TrainArguments(TorchAccArguments, TunerArguments, Seq2SeqTrainingOverrideA
     add_version: bool = True
     resume_only_model: bool = False
     check_model: bool = True
-    loss_type: Optional[str] = field(default=None, metadata={'help': f'loss_func choices: {list(LOSS_MAPPING.keys())}'})
 
     # dataset
     packing: bool = False
     lazy_tokenize: Optional[bool] = None
+
+    # plugin
+    loss_type: Optional[str] = field(default=None, metadata={'help': f'loss_func choices: {list(LOSS_MAPPING.keys())}'})
+    optimizer: Optional[str] = None
+    metric: Optional[str] = None
 
     # extra
     acc_strategy: Literal['token', 'seq'] = 'token'
@@ -138,6 +142,12 @@ class TrainArguments(TorchAccArguments, TunerArguments, Seq2SeqTrainingOverrideA
         Seq2SeqTrainingOverrideArguments.__post_init__(self)
         TunerArguments.__post_init__(self)
         TorchAccArguments.__post_init__(self)
+
+        if self.optimizer is None:
+            if self.lorap_lr_ratio:
+                self.optimizer = 'lorap'
+            elif self.use_galore:
+                self.optimizer = 'galore'
 
         if len(self.dataset) == 0:
             raise ValueError(f'self.dataset: {self.dataset}, Please input the training dataset.')
@@ -170,7 +180,10 @@ class TrainArguments(TorchAccArguments, TunerArguments, Seq2SeqTrainingOverrideA
                                  f'local_world_size: {self.local_world_size}.')
 
             ds_config_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'ds_config'))
-            deepspeed_mapping = {name: f'{name}.json' for name in ['zero2', 'zero3', 'zero2_offload', 'zero3_offload']}
+            deepspeed_mapping = {
+                name: f'{name}.json'
+                for name in ['zero0', 'zero1', 'zero2', 'zero3', 'zero2_offload', 'zero3_offload']
+            }
             for ds_name, ds_config in deepspeed_mapping.items():
                 if self.deepspeed == ds_name:
                     self.deepspeed = os.path.join(ds_config_folder, ds_config)

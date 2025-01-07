@@ -5,6 +5,7 @@ import multiprocessing
 import time
 from contextlib import contextmanager
 from dataclasses import asdict
+from functools import partial
 from http import HTTPStatus
 from threading import Thread
 from typing import List, Optional, Union
@@ -15,7 +16,7 @@ from aiohttp import ClientConnectorError
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
-from swift.llm import DeployArguments
+from swift.llm import AdapterRequest, DeployArguments
 from swift.plugin import InferStats
 from swift.utils import get_logger
 from .infer import SwiftInfer
@@ -121,6 +122,8 @@ class SwiftDeploy(SwiftInfer):
 
     def _set_request_config(self, request_config) -> None:
         default_request_config = self.args.get_request_config()
+        if default_request_config is None:
+            return
         for key, val in asdict(request_config).items():
             default_val = getattr(default_request_config, key)
             if default_val is not None and (val is None or isinstance(val, (list, tuple)) and len(val) == 0):
@@ -137,9 +140,9 @@ class SwiftDeploy(SwiftInfer):
         if error_msg:
             return self.create_error_response(HTTPStatus.BAD_REQUEST, error_msg)
         infer_kwargs = self.infer_kwargs.copy()
-        adapter_request = args.adapter_mapping.get(request.model)
-        if adapter_request:
-            infer_kwargs['adapter_request'] = adapter_request
+        adapter_path = args.adapter_mapping.get(request.model)
+        if adapter_path:
+            infer_kwargs['adapter_request'] = AdapterRequest(request.model, adapter_path)
 
         infer_request, request_config = request.parse()
         self._set_request_config(request_config)
@@ -151,10 +154,12 @@ class SwiftDeploy(SwiftInfer):
                 logger.info(request_info)
             return kwargs
 
-        self.infer_engine.pre_infer_hooks = [pre_infer_hook]
+        infer_kwargs['pre_infer_hook'] = pre_infer_hook
         try:
             res_or_gen = await self.infer_async(infer_request, request_config, template=self.template, **infer_kwargs)
-        except ValueError as e:
+        except Exception as e:
+            import traceback
+            print(traceback.format_exc())
             return self.create_error_response(HTTPStatus.BAD_REQUEST, str(e))
         if request_config.stream:
 
@@ -210,7 +215,7 @@ def run_deploy(args: DeployArguments, return_url: bool = False):
     try:
         while not is_accessible(deploy_args.port):
             time.sleep(1)
-        yield f'http://127.0.0.1:{deploy_args.port}/v1/chat/completions' if return_url else deploy_args.port
+        yield f'http://127.0.0.1:{deploy_args.port}/v1' if return_url else deploy_args.port
     finally:
         process.terminate()
         logger.info('The deployment process has been terminated.')

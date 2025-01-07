@@ -10,6 +10,7 @@ class LLMTemplateType:
 
     qwen = 'qwen'
     qwen2_5 = 'qwen2_5'
+    qwen2_5_math = 'qwen2_5_math'
     qwq = 'qwq'
     marco_o1 = 'marco_o1'
     modelscope_agent = 'modelscope_agent'
@@ -45,10 +46,12 @@ class LLMTemplateType:
     minicpm = 'minicpm'
     telechat = 'telechat'
     telechat2 = 'telechat2'
-    telechat2_115b = 'telechat2_115b'
 
     codefuse = 'codefuse'
     codefuse_codellama = 'codefuse_codellama'
+
+    skywork = 'skywork'
+    skywork_o1 = 'skywork_o1'
 
     mistral_nemo = 'mistral_nemo'
     zephyr = 'zephyr'
@@ -59,13 +62,16 @@ class LLMTemplateType:
 
     yuan = 'yuan'
     xverse = 'xverse'
-    skywork = 'skywork'
     bluelm = 'bluelm'
     orion = 'orion'
 
     aya = 'aya'
     c4ai = 'c4ai'
     dbrx = 'dbrx'
+
+
+class RMTemplateType:
+    internlm2_reward = 'internlm2_reward'
 
 
 class MLLMTemplateType:
@@ -75,6 +81,7 @@ class MLLMTemplateType:
     qwen2_audio = 'qwen2_audio'
     qvq = 'qvq'
     ovis1_6 = 'ovis1_6'
+    ovis1_6_llama3 = 'ovis1_6_llama3'
 
     llama3_1_omni = 'llama3_1_omni'
     llama3_2_vision = 'llama3_2_vision'
@@ -142,7 +149,7 @@ class MLLMTemplateType:
     megrez_omni = 'megrez_omni'
 
 
-class TemplateType(LLMTemplateType, MLLMTemplateType):
+class TemplateType(LLMTemplateType, MLLMTemplateType, RMTemplateType):
 
     @classmethod
     def get_template_name_list(cls) -> List[str]:
