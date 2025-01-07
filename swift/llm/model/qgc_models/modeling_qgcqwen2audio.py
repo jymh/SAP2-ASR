@@ -69,7 +69,7 @@ class Qwen2AudioQGCPoolingLayer(nn.Module):
         self.head_dim = self.hidden_size // self.num_heads
         # self.q_proj = nn.Linear(self.hidden_size, self.num_heads * self.head_dim, bias=False)
         # self.k_proj = nn.Linear(self.hidden_size, self.num_heads * self.head_dim, bias=False)
-        self.semantic_alignment_layer = nn.Linear(self.hidden_size, 4096)  # project to LLM dimension
+        # self.semantic_alignment_layer = nn.Linear(self.hidden_size, 4096)  # project to LLM dimension
         # self.contxt_layernorm = nn.LayerNorm(compressor_hidden_size)
         # self.audio_layernorm = nn.LayerNorm(compressor_hidden_size)
         
@@ -132,7 +132,7 @@ class Qwen2AudioQGCPoolingLayer(nn.Module):
         # pooling_hidden_states = (combined_pooling_weights * combined_pooling_weights).reshape(bsz, -1, hidden_size)
         # pooling_attention_mask = enc_contxt_mask
         
-        pooling_hidden_states = self.semantic_alignment_layer(pooling_hidden_states)
+        # pooling_hidden_states = self.semantic_alignment_layer(pooling_hidden_states)
 
         return pooling_hidden_states, pooling_attention_mask
         
