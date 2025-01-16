@@ -5,16 +5,20 @@ import argparse
 
 HOME_DIR = pathlib.Path(os.path.expanduser("~"))
 
-def make_filtered_train_dataset(prediction_file, raw_test_file, output_file):
+def make_filtered_train_dataset(prediction_file, raw_test_file, output_file, context_token=False):
     prediction_keywords_file = []
     with open(prediction_file, 'r', encoding='utf8') as f:
         for line in f.readlines():
             prediction_keywords_file.append(json.loads(line))
     with open(raw_test_file, 'r', encoding='utf8') as f:
         data = json.load(f)
-    
-    INSTRUCTION_PROMPT_WITH_KEYWORDS = """Transcribe speech to text according to keywords may appear in the utterance. Possible keywords are: <|startofcontext|>{keywords}<|endofcontext|>"""
-    INSTRUCTION_PROMPT_WITHOUT_KEYWORDS = """Transcribe speech to text.<|startofcontext|><|endofcontext|>"""
+        
+    if context_token:
+        INSTRUCTION_PROMPT_WITH_KEYWORDS = """Transcribe speech to text according to keywords may appear in the utterance. Possible keywords are: <|startofcontext|>{keywords}<|endofcontext|>"""
+        INSTRUCTION_PROMPT_WITHOUT_KEYWORDS = """Transcribe speech to text.<|startofcontext|><|endofcontext|>"""
+    else:
+        INSTRUCTION_PROMPT_WITH_KEYWORDS = """Transcribe speech to text according to keywords may appear in the utterance. Possible keywords are: {keywords}"""
+        INSTRUCTION_PROMPT_WITHOUT_KEYWORDS = """Transcribe speech to text."""
     # INSTRUCTION_PROMPT = """Select keywords that may appear in the speech from the following keywords list: <|startofcontext|>{keywords}<|endofcontext|>"""
 
     INPUT_WRAPPER = """<audio>{query}"""
@@ -84,9 +88,14 @@ def main():
         required=True,
     )
     
+    parser.add_argument(
+        "--add_context_token",
+        action="store_true"
+    )
+    
     args = parser.parse_args()
     
-    make_filtered_train_dataset(args.filtered_keywords_file, args.raw_test_file, args.output_file)
+    make_filtered_train_dataset(args.filtered_keywords_file, args.raw_test_file, args.output_file, args.add_context_token)
 
 if __name__=="__main__":
     main()
