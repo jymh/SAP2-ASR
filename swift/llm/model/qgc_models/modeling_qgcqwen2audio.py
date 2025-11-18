@@ -12,38 +12,7 @@ from transformers.models.qwen2_audio.modeling_qwen2_audio import Qwen2AudioCausa
 from transformers.modeling_outputs import ModelOutput
 from transformers.cache_utils import Cache
 
-# def fix_window_size_pooling(hidden_states, attention_mask, weights):
-#     bsz, pooled_length, window_size, hidden_size = hidden_states.size()
-#     scatter_matrix = torch.zeros_like(attention_mask, dtype=attention_mask.dtype, device=attention_mask.device) # (bsz, contxt_length) 
-#     scatter_matrix[..., ::window_size] = 1
-#     scatter_index = scatter_matrix.cumsum(dim=-1) - 1
-    
-#     hidden_states_after_weighting = (hidden_states * weights).reshape(bsz, -1, hidden_size)
-#     hidden_states_after_weighting.masked_fill_(~attention_mask.unsqueeze(-1).repeat(1, 1, hidden_size).bool(), 0.0)
-#     pooling_hidden_states = torch.zeros([bsz, pooled_length, hidden_size], dtype=hidden_states.dtype, device=hidden_states.device)
-#     pooling_hidden_states = torch.scatter_add(pooling_hidden_states, 1, scatter_index[..., None].repeat(1, 1, hidden_size), hidden_states_after_weighting)
-   
-#     pooling_attention_mask = torch.zeros([bsz, pooled_length], dtype=attention_mask.dtype, device=attention_mask.device)
-#     pooling_attention_mask = torch.scatter_add(pooling_attention_mask, 1, scatter_index, attention_mask)
-#     pooling_attention_mask = pooling_attention_mask.greater(0).to(attention_mask.dtype)
-    
-#     return pooling_hidden_states, pooling_attention_mask
 
-# def fix_window_size_pooling(hidden_states, attention_mask, weights):
-#     bsz, pooled_length, window_size, hidden_size = hidden_states.size()
-    
-#     pooling_hidden_states = (hidden_states * weights).sum(dim=-2)
-    
-#     pooling_attention_mask = attention_mask.reshape(bsz, -1, window_size).sum(dim=-1)
-#     pooling_attention_mask = pooling_attention_mask.greater(0).to(attention_mask.dtype)
-    
-#     pooling_hidden_states = (hidden_states * weights).contiguous().sum(dim=-1)
-#     pooling_attention_mask = attention_mask.contiguous().reshape(bsz, -1, window_size).sum(dim=-1).greater(0).to(attention_mask.dtype)
-    
-#     # pooling_hidden_states = (hidden_states * weights).reshape(bsz, -1, hidden_size)
-#     # pooling_attention_mask = attention_mask
-    
-#     return pooling_hidden_states, pooling_attention_mask
 
 def fix_window_size_pooling(hidden_states, attention_mask, weights):
     bsz, pooled_length, window_size, hidden_size = hidden_states.size()
@@ -91,24 +60,10 @@ class Qwen2AudioQGCPoolingLayer(nn.Module):
             enc_contxt_mask = padding(enc_contxt_mask, shape=(bsz, padding_length))
             contxt_len = enc_contxt_mask.size(1)
         
-        # def padding(tensor, shape):
-        #     return torch.cat([tensor, torch.zeros(shape, dtype=tensor.dtype, device=tensor.device,)], dim=1)
-            
-        # padding_length = 4096
-        # padded_contxt_hidden_states = torch.zeros((bsz, 4096, hidden_size), dtype=contxt_hidden_states.dtype, device=contxt_hidden_states.device)
-        # padded_enc_contxt_mask = torch.zeros((bsz, 4096), dtype=enc_contxt_mask.dtype, device=enc_contxt_mask.device)
-        # padded_contxt_hidden_states[:, :contxt_len, :] = contxt_hidden_states
-        # padded_enc_contxt_mask[:, :contxt_len] = enc_contxt_mask
-        # contxt_hidden_states = padded_contxt_hidden_states
-        # enc_contxt_mask = padded_enc_contxt_mask
+        
 
         audio_hidden_states = audio_hidden_states.masked_fill(~enc_audio_mask[..., None].bool(), 0.0)
-        # audio_hidden_states = self.audio_layernorm(audio_hidden_states)
         
-        # audio_hidden_states = self.audio_layernorm(audio_hidden_states)
-        # contxt_hidden_states = self.contxt_layernorm(contxt_hidden_states)
-        # query_states = self.q_proj(audio_hidden_states).contiguous().reshape(bsz, -1, self.num_heads, self.head_dim).transpose(1, 2) # query_states: (bsz, num_heads, audio_length, head_dim)
-        # key_states = self.k_proj(contxt_hidden_states).contiguous().reshape(bsz, -1, self.num_heads, self.head_dim).transpose(1, 2) # key_states: (bsz, num_heads, contxt_length, head_dim)
         query_states = audio_hidden_states.contiguous().reshape(bsz, -1, self.num_heads, self.head_dim).transpose(1, 2) # query_states: (bsz, num_heads, audio_length, head_dim)
         key_states = contxt_hidden_states.contiguous().reshape(bsz, -1, self.num_heads, self.head_dim).transpose(1, 2) # key_states: (bsz, num_heads, contxt_length, head_dim)
         # value_states = contxt_hidden_states.reshape(bsz, -1, self.num_heads, self.head_dim)
@@ -138,162 +93,6 @@ class Qwen2AudioQGCPoolingLayer(nn.Module):
         
 
 
-# class Qwen2AudioQGCPoolingLayer(nn.Module):
-#     def __init__(self, compressor_hidden_size, num_attention_heads, **kwargs):
-#         super().__init__()
-#         self.hidden_size = compressor_hidden_size
-#         self.num_heads = num_attention_heads
-#         self.head_dim = self.hidden_size // self.num_heads
-#         self.q_proj = nn.Linear(self.hidden_size, self.num_heads * self.head_dim, bias=False)
-#         self.k_proj = nn.Linear(self.hidden_size, self.num_heads * self.head_dim, bias=False)
-#         self.semantic_alignment_layer = nn.Linear(self.hidden_size, 4096)  # project to LLM dimension
-#         # self.contxt_layernorm = nn.LayerNorm(self.head_dim)
-#         # self.audio_layernorm = nn.LayerNorm(self.head_dim)
-        
-        
-#     def forward(self, audio_hidden_states, contxt_hidden_states, enc_audio_mask, enc_contxt_mask, window_size=None, **kwargs):
-#         # if window_size is None:
-#         #     if self.args.random_pool_window_size:
-#         #         window_size = random.choice(self.args.cand_pool_window_sizes)
-#         #     else:
-#         #         window_size = self.args.pool_window_size
-                
-#         bsz, contxt_len, hidden_size = contxt_hidden_states.size()
-#         # if contxt_len % window_size != 0:
-#         #     def padding(tensor, shape):
-#         #         return torch.cat([tensor, torch.zeros(shape, dtype=tensor.dtype, device=tensor.device)], dim=1)
-            
-#         #     padding_length = window_size - contxt_len % window_size
-#         #     contxt_hidden_states = padding(contxt_hidden_states, shape=(bsz, padding_length, hidden_size))
-#         #     enc_contxt_mask = padding(enc_contxt_mask, shape=(bsz, padding_length))
-#         #     contxt_len = enc_contxt_mask.size(1)
-            
-#         # return contxt_hidden_states, enc_contxt_mask
-        
-#         # contxt_hidden_states = self.contxt_layernorm(contxt_hidden_states)
-#         audio_hidden_states = audio_hidden_states.masked_fill(~enc_audio_mask[..., None].bool(), 0.0)
-#         # audio_hidden_states = self.audio_layernorm(audio_hidden_states)
-        
-#         query_states = self.q_proj(audio_hidden_states).contiguous().reshape(bsz, -1, self.num_heads, self.head_dim).transpose(1, 2) # query_states: (bsz, num_heads, audio_length, head_dim)
-#         key_states = self.k_proj(contxt_hidden_states).contiguous().reshape(bsz, -1, self.num_heads, self.head_dim).transpose(1, 2) # key_states: (bsz, num_heads, contxt_length, head_dim)
-#         # query_states = self.audio_layernorm(query_states)
-#         # key_states = self.contxt_layernorm(key_states)
-        
-#         pooling_weights = torch.einsum('bnqh,bnkh->bnqk', query_states, key_states) / math.sqrt(self.head_dim) # pooling_weights: (bsz, num_heads, audio_length, contxt_length)
-#         pooling_weights.masked_fill(~enc_audio_mask[:, None, :, None].bool(), torch.finfo(query_states.dtype).min) # pooling_weights: (bsz, num_heads, audio_length, contxt_length)
-        
-#         pooling_weights = pooling_weights.softmax(dim=-2)
-#         pooling_weights = pooling_weights.sum(dim=-2) / enc_audio_mask[..., None, None].sum(dim=1) # (bsz, num_heads, contxt_len)
-#         pooling_weights.masked_fill(~enc_contxt_mask.unsqueeze(1).bool(), torch.finfo(query_states.dtype).min)
-#         pooling_weights = pooling_weights.softmax(dim=-1) # (bsz, num_heads, contxt_len)
-#         pooling_weights = pooling_weights.transpose(1, 2)[..., None].repeat(1, 1, 1, self.head_dim).contiguous().reshape(bsz, -1, self.hidden_size) # (bsz, contxt_len, hidden_size)
-#         pooling_hidden_states = (contxt_hidden_states * pooling_weights).contiguous().reshape(bsz, -1, self.hidden_size)
-#         pooling_hidden_states = self.semantic_alignment_layer(pooling_hidden_states)
-#         pooling_attention_mask = enc_contxt_mask  
-
-#         return pooling_hidden_states, pooling_attention_mask
-    
-    
-# class Qwen2AudioQGCPoolingLayer(nn.Module):
-#     def __init__(self, compressor_hidden_size, num_attention_heads, **kwargs):
-#         super().__init__()
-#         self.hidden_size = compressor_hidden_size
-#         self.num_heads = num_attention_heads
-#         self.head_dim = self.hidden_size // self.num_heads
-#         self.q_proj = nn.Linear(self.hidden_size, self.num_heads * self.head_dim, bias=False)
-#         self.k_proj = nn.Linear(self.hidden_size, self.num_heads * self.head_dim, bias=False)
-#         # self.contxt_layernorm = nn.LayerNorm(compressor_hidden_size)
-#         # self.audio_layernorm = nn.LayerNorm(compressor_hidden_size)
-        
-        
-#     def forward(self, audio_hidden_states, contxt_hidden_states, enc_audio_mask, enc_contxt_mask, window_size=None, **kwargs):
-#         # if window_size is None:
-#         #     if self.args.random_pool_window_size:
-#         #         window_size = random.choice(self.args.cand_pool_window_sizes)
-#         #     else:
-#         #         window_size = self.args.pool_window_size
-                
-#         bsz, contxt_len, hidden_size = contxt_hidden_states.size()
-#         if contxt_len % window_size != 0:
-#             def padding(tensor, shape):
-#                 return torch.cat([tensor, torch.zeros(shape, dtype=tensor.dtype, device=tensor.device)], dim=1)
-            
-#             padding_length = window_size - contxt_len % window_size
-#             contxt_hidden_states = padding(contxt_hidden_states, shape=(bsz, padding_length, hidden_size))
-#             enc_contxt_mask = padding(enc_contxt_mask, shape=(bsz, padding_length))
-#             contxt_len = enc_contxt_mask.size(1)
-            
-#         # contxt_hidden_states = self.contxt_layernorm(contxt_hidden_states)
-#         audio_mean_hidden_states = audio_hidden_states.masked_fill(~enc_audio_mask[..., None].bool(), 0.0)
-#         audio_mean_hidden_states = audio_mean_hidden_states.sum(dim=1) / enc_audio_mask[..., None].sum(dim=1)
-#         # # audio_mean_hidden_states = self.audio_layernorm(audio_mean_hidden_states)
-        
-#         query_states = self.q_proj(audio_mean_hidden_states).contiguous().reshape(bsz, self.num_heads, self.head_dim)
-#         key_states = self.k_proj(contxt_hidden_states).contiguous().reshape(bsz, -1, self.num_heads, self.head_dim).transpose(1, 2) # key_states: (bsz, num_heads, contxt_length, head_dim)
-        
-#         pooling_weights = torch.einsum('bnh,bndh->bnd', query_states, key_states) / math.sqrt(self.head_dim) # pooling_weights: (bsz, num_heads, contxt_length)
-#         pooling_weights.masked_fill_(~enc_contxt_mask.unsqueeze(1).bool(), torch.finfo(query_states.dtype).min)
-        
-#         pooling_weights = pooling_weights.softmax(dim=-1).to(query_states.dtype)
-#         pooling_weights = pooling_weights.transpose(1, 2)[..., None].repeat(1, 1, 1, self.head_dim).contiguous().reshape(bsz, -1, self.hidden_size)
-#         pooling_hidden_states = (contxt_hidden_states * pooling_weights).contiguous().reshape(bsz, -1, self.hidden_size)
-#         pooling_attention_mask = enc_contxt_mask  
-
-#         return pooling_hidden_states, pooling_attention_mask
-    
-# class Qwen2AudioQGCPoolingLayer(nn.Module):
-#     def __init__(self, compressor_hidden_size=4096, num_attention_heads=4, **kwargs):
-#         super().__init__()
-#         self.hidden_size = 4096
-#         self.num_heads = 4
-#         self.head_dim = self.hidden_size // self.num_heads
-#         self.q_proj = nn.Linear(self.hidden_size, self.num_heads * self.head_dim, bias=False)
-#         self.k_proj = nn.Linear(self.hidden_size, self.num_heads * self.head_dim, bias=False)
-#         self.contxt_layernorm = nn.LayerNorm(compressor_hidden_size)
-#         self.audio_layernorm = nn.LayerNorm(compressor_hidden_size)
-
-#     def forward(self, que_hidden_states, doc_hidden_states, enc_que_mask, enc_doc_mask, window_size=2, **kwargs):
-#         bsz, d_len, hidden_size = doc_hidden_states.size()
-#         if d_len % window_size != 0:
-
-#             def padding(tensor, shape):
-#                 return torch.cat([torch.zeros(shape, dtype=tensor.dtype, device=tensor.device), tensor], dim=1)
-
-#             padding_length = window_size - d_len % window_size
-#             doc_hidden_states = padding(doc_hidden_states, shape=(bsz, padding_length, hidden_size))
-#             enc_doc_mask = padding(enc_doc_mask, shape=(bsz, padding_length))
-#             d_len = enc_doc_mask.size(1)
-
-#         doc_hidden_states = self.contxt_layernorm(doc_hidden_states)
-#         que_mean_hidden_states = que_hidden_states.masked_fill(~enc_que_mask[..., None].bool(), 0.0)
-#         que_mean_hidden_states = que_mean_hidden_states.sum(dim=1) / enc_que_mask[..., None].sum(dim=1)
-#         que_mean_hidden_states = self.audio_layernorm(que_mean_hidden_states)
-        
-#         query_states = self.q_proj(que_mean_hidden_states).view(bsz, self.num_heads, self.head_dim)
-#         key_states = self.k_proj(doc_hidden_states).view(bsz, -1, self.num_heads, self.head_dim).transpose(1, 2)
-#         value_states = doc_hidden_states.view(bsz, -1, self.num_heads, self.head_dim).transpose(1, 2)
-
-#         pooling_weights = torch.einsum('bnh,bndh->bnd', query_states, key_states) / math.sqrt(self.head_dim)
-#         pooling_weights.masked_fill_(~enc_doc_mask.unsqueeze(1).bool(), torch.finfo(query_states.dtype).min)
-#         pooling_weights = pooling_weights.view(bsz, self.num_heads, -1, window_size)
-#         print('1111')
-#         print(str(pooling_weights.max()) + '\t' + str(pooling_weights.min()) + '\t' + str(torch.isinf(pooling_weights).any()))
-#         pooling_weights = pooling_weights.softmax(dim=-1, dtype=torch.float32).to(query_states.dtype)
-#         print('2222')
-#         print(str(pooling_weights.max()) + '\t' + str(pooling_weights.min()) + '\t' + str(torch.isinf(pooling_weights).any()))
-
-        
-#         combined_pooling_weights = pooling_weights.permute(0, 2, 3, 1)
-#         combined_pooling_weights = combined_pooling_weights[..., None].repeat(1, 1, 1, 1, self.head_dim).view(bsz, -1, window_size, self.hidden_size)
-#         combined_value_states = value_states.permute(0, 2, 1, 3).view(bsz, -1, window_size, self.hidden_size)
-
-#         pooling_hidden_states, pooling_attention_mask = fix_window_size_pooling(
-#             hidden_states=combined_value_states,
-#             attention_mask=enc_doc_mask,
-#             weights=combined_pooling_weights,
-#         )
-        
-#         return pooling_hidden_states, pooling_attention_mask
 
 class QGCQwen2AudioForConditionalGeneration(Qwen2AudioForConditionalGeneration):
     def __init__(self, config, qgc_window_size=None, **kwargs):

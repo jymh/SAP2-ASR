@@ -1,5 +1,5 @@
 import os
-os.environ['CUDA_VISIBLE_DEVICES'] = '1'
+os.environ['CUDA_VISIBLE_DEVICES'] = '4'
 import codecs
 from pathlib import Path
 import json
@@ -95,10 +95,10 @@ def convert_jsonl_to_txt_multitask(result_file):
     with result_file.open(mode='rt', encoding='utf8') as f:
         for line in f.readlines():
             data_item = json.loads(line)
-            audio_paths.append(re.match(pattern=r"<audio>(.*?)</audio>", string=data_item["query"]).group(1))
-            hyps.append(re.search(pattern=r'Transcription: (.+)', string=data_item["response"]).group(1))
-            refs.append(re.search(pattern=r'Transcription: (.+)', string=data_item["label"]).group(1))
-
+            if re.search(pattern=r'Transcription: (.+)', string=data_item["label"]) is not None and re.search(pattern=r'Transcription: (.+)', string=data_item["response"]) is not None:
+                audio_paths.append(re.match(pattern=r"<audio>(.*?)</audio>", string=data_item["query"]).group(1))
+                refs.append(re.search(pattern=r'Transcription: (.+)', string=data_item["label"]).group(1))
+                hyps.append(re.search(pattern=r'Transcription: (.+)', string=data_item["response"]).group(1))   
     
     hyp_writer =  codecs.open(str(result_dir / "test.hyp"), mode='w', encoding='utf8')
     ref_writer = codecs.open(str(result_dir / "test.ref"), mode='w', encoding='utf8')
@@ -161,17 +161,82 @@ if __name__=="__main__":
     # model_path = pathlib.Path("/data/ymrong/output/slidespeech_30k_lora_multitask_train_en_instruction/qwen2-audio-7b-instruct/v3-20241028-162459/checkpoint-1346")
     # eval_dataset = "data/slidespeech_30k_multitask_train_en_instruction/test.json"
     
-    model_path = pathlib.Path("/data/ymrong/output/slidespeech_L95_filter_lora_en_instruction/qwen2-audio-7b-instruct/v3-20241030-172433/checkpoint-10033")
-    eval_dataset = "/data/ymrong/Projects/ms-swift/data/slidespeech_L95_filter_en_instruction/test.json"
+    # model_path = pathlib.Path("/data/ymrong/output/slidespeech_L95_filter_lora_en_instruction/qwen2-audio-7b-instruct/v3-20241030-172433/checkpoint-10033")
+    # eval_dataset = "/data/ymrong/Projects/ms-swift/data/slidespeech_L95_filter_en_instruction/test.json"
+    
+    # model_path = pathlib.Path("/data/rym/output/slidespeech_L95_train_filteredkeywords_lora_en_instruction/qwen2-audio-7b-instruct/v1-20241031-164443/checkpoint-1000")
+    # eval_dataset = "/data/rym/Projects/ms-swift/data/slidespeech_L95_filtered_train_en_instruction/test.json"
+    
+    # model_path = pathlib.Path("/data/rym/output/slidespeech_30k_lora_en_instruction/qwen2-audio-7b-instruct/v3-20241106-172248/checkpoint-6730")
+    # eval_dataset = "/data/rym/Projects/ms-swift/data/slidespeech_30k_en_instruction/test.json"
+    
+    # model_path = pathlib.Path("/data/rym/output/slidespeech_30k_train_filterkeywords_lora_en_instruction/qwen2-audio-7b-instruct/v3-20241106-180144/checkpoint-6730")
+    # eval_dataset = "/data/rym/Projects/ms-swift/data/slidespeech_30k_filtered_train_en_instruction/test.json"
+    
+    # model_path = pathlib.Path("/data/rym/output/slidespeech_L95_train_filteredkeywords_lora_en_instruction/qwen2-audio-7b-instruct/v3-20241101-001300/checkpoint-20066")
+    # eval_dataset = "/data/rym/Projects/ms-swift/data/slidespeech_30k_filtered_train_en_instruction/test_from_filter.json"
+    
+    # model_path = pathlib.Path("/data/rym/output/slidespeech_L95_lora_5slidesocr_en_instruction/qwen2-audio-7b-instruct/v2-20241115-002608/checkpoint-30100")
+    # eval_dataset = "/data/rym/Projects/ms-swift/data/slidespeech_L95_5slidesocr_en_instruction/test.json"
+    
+    # model_path = pathlib.Path("/data/rym/output/slidespeech_L95_lora_5slides_filter_en_instruction/qwen2-audio-7b-instruct/v0-20241117-001758/checkpoint-12000")
+    # eval_dataset = "/data/rym/Projects/ms-swift/data/slidespeech_L95_5slides_filter_en_instruction/test.json"
+    
+    # model_path = pathlib.Path("/data/rym/output/slidespeech_L95_lora_5slides_filtered_train_en_instruction/qwen2-audio-7b-instruct/v0-20241119-031651/checkpoint-7525")
+    # eval_dataset = "/data/rym/Projects/ms-swift/data/slidespeech_L95_5slides_filtered_train_en_instruction/test_from_filter.json"
+    
+    # model_path = pathlib.Path("/data/rym/output/slidespeech_L95_lora_5slides_multitask_train_en_instruction/qwen2-audio-7b-instruct/v3-20241120-172606/checkpoint-20066")
+    # eval_dataset = "/data/rym/Projects/ms-swift/data/slidespeech_L95_5slides_multitask_train_en_instruction/test.json"
+    
+    # model_path = pathlib.Path("/data/rym/output/slidespeech_L95_lora_3slidesocr_en_instruction/qwen2-audio-7b-instruct/v2-20241201-021657/checkpoint-20066")
+    # eval_dataset = "/data/rym/Projects/ms-swift/data/slidespeech_L95_3slidesocr_en_instruction/test.json"
+    
+    # model_path = pathlib.Path("/data/rym/output/slidespeech_L95_lora_5slidesocr_en_instruction/qgc-qwen2-audio-7b-instruct/v0-20241203-222149/checkpoint-30098")
+    # eval_dataset = "data/rym/Projects/ms-swift/data/slidespeech_L95_5slidesocr_en_instruction/test.json"
+    
+    # model_path = pathlib.Path("/data/rym/output/slidespeech_L95_lora_organizedocr/qwen2-audio-7b-instruct/v0-20241208-193552/checkpoint-14899")
+    # eval_dataset = "/data/rym/Projects/ms-swift/data/slidespeech_L95_organizedocr/test.json"
+    
+    # model_path = pathlib.Path("/data/rym/output/slidespeech_L95_lora_raw/qwen2-audio-7b-instruct/v0-20241210-084331/checkpoint-15050")
+    # eval_dataset = "/data/rym/Projects/ms-swift/data/slidespeech_L95_raw/test.json"
+    
+    # model_path = pathlib.Path("/data/rym/output/slidespeech_L95_lora_5slidesocr_en_instruction/qgc-qwen2-audio-7b-instruct/v2-20241211-004321/checkpoint-30098")
+    # eval_dataset = "/data/rym/Projects/ms-swift/data/add_context_token/slidespeech_L95_5slidesocr_en_instruction/test.json"
+    # eval_dataset = "/data/rym/Projects/ms-swift/data/add_context_token/slidespeech_L95_5slidesocr_en_instruction/train_for_test_remain.json"
+    
+    # model_path = pathlib.Path("/data/rym/output/slidespeech_L95_lora_5slides_multitask_train_en_instruction/qgc-qwen2-audio-7b-instruct/v1-20241211-170945/checkpoint-30099")
+    # eval_dataset = "/data/rym/Projects/ms-swift/data/add_context_token/slidespeech_L95_5slides_multitask_train_en_instruction/test.json"
+    
+    # model_path = pathlib.Path("/data/rym/output/slidespeech_L95_lora_5slides_multitask_train_en_instruction/qgc-qwen2-audio-7b-instruct/v2-20241212-120605/checkpoint-22000")
+    # eval_dataset = "/data/rym/Projects/ms-swift/data/add_context_token/slidespeech_L95_5slides_multitask_train_en_instruction/test.json"
+    
+    # model_path = pathlib.Path("/data/rym/output/slidespeech_L95_lora_5slidesocr_en_instruction/qgc-qwen2-audio-7b-instruct/v0-20241214-114047/checkpoint-30099")
+    # eval_dataset = "/data/rym/Projects/ms-swift/data/add_context_token/slidespeech_L95_5slidesocr_en_instruction/test.json"
+        
+    # model_path = pathlib.Path("/data/rym/output/slidespeech_L95_lora_5slides_multitask_train_en_instruction/qgc-qwen2-audio-7b-instruct/v4-20241216-113603/checkpoint-15049")
+    # eval_dataset = "/data/rym/Projects/ms-swift/data/add_context_token/slidespeech_L95_5slides_multitask_train_en_instruction/test.json"
+    
+    # model_path = pathlib.Path("/data/rym/output/slidespeech_L95_lora_5slidesocr_en_instruction/qgc-qwen2-audio-7b-instruct/v1-20241216-143511/checkpoint-30099")
+    # eval_dataset = "/data/rym/Projects/ms-swift/data/add_context_token/slidespeech_L95_5slidesocr_en_instruction/test.json" 
+    
+    model_path = pathlib.Path("/data/rym/output/slidespeech_L95_lora_5slides_multitask_train_en_instruction/qgc-qwen2-audio-7b-instruct/v5-20241216-214322/checkpoint-30098")
+    eval_dataset = "/data/rym/Projects/ms-swift/data/add_context_token/slidespeech_L95_5slides_multitask_train_en_instruction/test.json"
     
     if use_lora:
         original_ckpt_dir = model_path
         
         ckpt_dir = original_ckpt_dir.parents[0] / (str(original_ckpt_dir.name) + "-merged")
         if not ckpt_dir.exists():
+            # result = subprocess.run(["swift", "export", 
+            #             "--model_id_or_path", "/data/rym/models/qwen2-audio-instruct",
+            #             "--ckpt", str(original_ckpt_dir),
+            #             "--merge_lora", "true"])
             result = subprocess.run(["swift", "export", 
+                        "--model_id_or_path", "/data/rym/models/qgc-qwen2-audio-instruct",
                         "--ckpt", str(original_ckpt_dir),
-                        "--merge_lora", "true"])
+                        "--merge_lora", "true",
+                        "--compressor_hidden_size", "4096",
+                        "--num_attention_heads", "4"])
             print(result.stdout)
         
     else:
@@ -179,11 +244,13 @@ if __name__=="__main__":
     
     # evaluate(ckpt_dir=ckpt_dir)
     
-    subprocess.run(["swift", "infer", "--ckpt_dir", str(ckpt_dir), "--val_dataset", eval_dataset])
+    subprocess.run(["swift", "infer", "--ckpt_dir", str(ckpt_dir), "--val_dataset", eval_dataset, "--gpu_memory_utilization", "0.9", "--compressor_hidden_size", "4096",
+                        "--num_attention_heads", "4"])
+    # subprocess.run(["swift", "infer", "--ckpt_dir", str(ckpt_dir), "--val_dataset", eval_dataset])
     
     result_file = next((Path(ckpt_dir) / "infer_result").iterdir())
-    convert_jsonl_to_txt(result_file)
-    # convert_jsonl_to_txt_multitask(result_file)
+    # convert_jsonl_to_txt(result_file)
+    convert_jsonl_to_txt_multitask(result_file)
 
     hyp_file = result_file.parents[0] / "test.hyp"
     ref_file = result_file.parents[0] / "test.ref"
@@ -191,7 +258,7 @@ if __name__=="__main__":
     import subprocess
 
     # result = subprocess.run(["python", "/data/ymrong/Projects/wenet/tools/compute-wer.py", str(ref_file), str(hyp_file), ">", str(wer_file)], shell=True, capture_output=True, text=True)
-    result = subprocess.run(f"python /data/ymrong/Projects/wenet/tools/compute-wer.py {str(ref_file)} {str(hyp_file)} > {str(wer_file)}",
+    result = subprocess.run(f"python /data/rym/Projects/wenet/tools/compute-wer.py {str(ref_file)} {str(hyp_file)} > {str(wer_file)}",
                             shell=True,
                             capture_output=True,
                             text=True)

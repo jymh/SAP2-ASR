@@ -1,14 +1,14 @@
 #! /bin/bash
 
 PROJECT_DIR=${HOME}/Projects/ms-swift
-OUTPUT_DIR=/data8/rym/output
+OUTPUT_DIR=/data/rym/output
 
 
-adapter_dir=${OUTPUT_DIR}/slidespeech_L95_lora_5slidesocr_compress_en_instruction/v0-20241224-231652/checkpoint-30099
-result_dir="infer_result"
-eval_dataset=${PROJECT_DIR}/data/add_context_token/slidespeech_L95_5slidesocr_en_instruction/test.json
+adapter_dir=${OUTPUT_DIR}/slidespeech_L95_lora_5slides_multitask_train_compress_en_instruction/v0-20241226-191733/checkpoint-30099
+# result_dir="infer_result"
+eval_dataset=${PROJECT_DIR}/data/add_context_token/slidespeech_L95_5slides_multitask_train_en_instruction/test.json
 
-result_file=${adapter_dir}/${result_dir}/test.jsonl
+result_file=${adapter_dir}/test.jsonl
 
 # CUDA_VISIBLE_DEVICES=0 swift infer \
 #     --adapters ${adapter_dir} \
@@ -17,12 +17,12 @@ result_file=${adapter_dir}/${result_dir}/test.jsonl
 #     --max_batch_size 4 \
 #     --val_dataset ${eval_dataset} \
 #     --result_path ${result_file} \
-#     --stream true \
+#     --stream false \
 #     --qgc_window_size 2 \
 #     --compressor_hidden_size 4096 \
 #     --num_attention_heads 4
 
-python evaluate_slidespeech_process.py --input_file ${result_file}
+python evaluate_slidespeech_process.py --input_file ${result_file} --multitask
 
 superdir=${adapter_dir}/${result_dir}
 python $HOME/Projects/SLAM-LLM/src/slam_llm/utils/whisper_tn.py ${superdir}/test.ref ${superdir}/test.ref.proc
