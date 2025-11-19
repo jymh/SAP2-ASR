@@ -1,4 +1,6 @@
-# SWIFT (Scalable lightWeight Infrastructure for Fine-Tuning)
+# SAP²-ASR: 面向上下文感知自动语音识别的语音感知长上下文剪枝与集成
+
+> **注意**：本仓库是基于 [ms-swift](https://github.com/modelscope/ms-swift) 的 fork，实现了 SAP²（Speech-Aware Context Pruning with Speech-Driven Attention-based Pooling，语音感知上下文剪枝与语音驱动注意力池化）方法，用于上下文感知的自动语音识别，详见我们的[论文](https://www.arxiv.org/pdf/2511.11139)。
 
 <p align="center">
     <br>
@@ -6,324 +8,207 @@
     <br>
 <p>
 <p align="center">
-<a href="https://modelscope.cn/home">魔搭社区官网</a>
+<a href="https://www.arxiv.org/pdf/2511.11139">论文</a> &nbsp ｜ &nbsp <a href="https://github.com/jymh/SAP2-ASR">原始代码</a> 
 <br>
-        中文&nbsp ｜ &nbsp<a href="README.md">English</a>&nbsp
+        <a href="README_CN.md">中文</a> &nbsp ｜ &nbsp <a href="README.md">English</a> &nbsp
 </p>
-
 
 <p align="center">
 <img src="https://img.shields.io/badge/python-3.10-5be.svg">
 <img src="https://img.shields.io/badge/pytorch-%E2%89%A52.0-orange.svg">
-<a href="https://github.com/modelscope/modelscope/"><img src="https://img.shields.io/badge/modelscope-%E2%89%A51.19-5D91D4.svg"></a>
-<a href="https://pypi.org/project/ms-swift/"><img src="https://badge.fury.io/py/ms-swift.svg"></a>
 <a href="https://github.com/modelscope/swift/blob/main/LICENSE"><img src="https://img.shields.io/github/license/modelscope/swift"></a>
-<a href="https://pepy.tech/project/ms-swift"><img src="https://pepy.tech/badge/ms-swift"></a>
-<a href="https://github.com/modelscope/swift/pulls"><img src="https://img.shields.io/badge/PR-welcome-55EB99.svg"></a>
 </p>
 
-<p align="center">
-<a href="https://trendshift.io/repositories/6427" target="_blank"><img src="https://trendshift.io/api/badge/repositories/6427" alt="modelscope%2Fswift | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
-</p>
-
-<p align="center">
-        <a href="https://arxiv.org/abs/2408.05517">论文</a> &nbsp ｜ <a href="https://swift.readthedocs.io/en/latest/">English Documentation</a> &nbsp ｜ &nbsp <a href="https://swift.readthedocs.io/zh-cn/latest/">中文文档</a> &nbsp
-</p>
-<p align="center">
-        <a href="https://swift2x-en.readthedocs.io/en/latest/">Swift2.x En Doc</a> &nbsp ｜ &nbsp <a href="https://swift2x.readthedocs.io/zh-cn/latest/">Swift2.x中文文档</a> &nbsp
-</p>
-
-
-##  📖 目录
-- [用户群](#-用户群)
+## 📖 目录
 - [简介](#-简介)
-- [新闻](#-新闻)
 - [安装](#%EF%B8%8F-安装)
 - [快速开始](#-快速开始)
-- [如何使用](#-如何使用)
-- [License](#-license)
+- [使用说明](#-使用说明)
+- [模型架构](#-模型架构)
 - [引用](#-引用)
-
-## ☎ 用户群
-
-请扫描下面的二维码来加入我们的交流群：
-
-[Discord Group](https://discord.com/invite/D27yfEFVz5)              |  微信群
-:-------------------------:|:-------------------------:
-<img src="asset/discord_qr.jpg" width="200" height="200">  |  <img src="asset/wechat.png" width="200" height="200">
+- [许可证](#-许可证)
 
 ## 📝 简介
-🍲 ms-swift是魔搭社区提供的大模型与多模态大模型微调部署框架，现已支持450+大模型与150+多模态大模型的训练（预训练、微调、人类对齐）、推理、评测、量化与部署。其中大模型包括：Qwen2.5、Llama3.3、GLM4、Internlm2.5、Yi1.5、Mistral、DeepSeek2.5、Baichuan2、Gemma2、TeleChat2等模型，多模态大模型包括：Qwen2-VL、Qwen2-Audio、Llama3.2-Vision、Llava、InternVL2.5、MiniCPM-V-2.6、GLM4v、Xcomposer2.5、Yi-VL、DeepSeek-VL2、Phi3.5-Vision、GOT-OCR2等模型。
 
-🍔 除此之外，ms-swift汇集了最新的训练技术，包括LoRA、QLoRA、Llama-Pro、LongLoRA、GaLore、Q-GaLore、LoRA+、LISA、DoRA、FourierFt、ReFT、UnSloth、和Liger等。ms-swift支持使用vLLM和LMDeploy对推理、评测和部署模块进行加速，并支持使用GPTQ、AWQ、BNB等技术对大模型和多模态大模型进行量化。为了帮助研究者和开发者更轻松地微调和应用大模型，ms-swift还提供了基于Gradio的Web-UI界面及丰富的最佳实践。
+**SAP²（Speech-Aware Context Pruning with Speech-Driven Attention-based Pooling，语音感知上下文剪枝与语音驱动注意力池化）** 是一个用于上下文感知自动语音识别（ASR）的新框架，能够动态剪枝并集成相关的上下文关键词。该方法解决了在特定领域场景（如会议演讲）中利用长上下文信息的挑战，这些场景中大量来自OCR的文本上下文既包含相关信息，也包含大量噪声。
 
-**为什么选择ms-swift？**
-- 🍎 **模型类型**：支持400+纯文本大模型、**150+多模态大模型**，All-to-All全模态模型的**训练到部署全流程**。
-- **数据集类型**：内置150+预训练、微调、人类对齐、多模态等各种类型的数据集，并支持自定义数据集。
-- **硬件支持**：CPU、RTX系列、T4/V100、A10/A100/H100、Ascend NPU等。
-- 🍊 **轻量训练**：支持了LoRA、QLoRA、DoRA、LoRA+、ReFT、RS-LoRA、LLaMAPro、Adapter、GaLore、Q-Galore、LISA、UnSloth、Liger-Kernel等轻量微调方式。
-- **分布式训练**：支持分布式数据并行（DDP）、device_map简易模型并行、DeepSpeed ZeRO2 ZeRO3、FSDP等分布式训练技术。
-- **量化训练**：支持对BNB、AWQ、GPTQ、AQLM、HQQ、EETQ量化模型进行训练。
-- **RLHF训练**：支持纯文本大模型和多模态大模型的DPO、CPO、SimPO、ORPO、KTO、RM、PPO等人类对齐训练方法。
-- 🍓 **多模态训练**：支持对图像、视频和语音不同模态模型进行训练，支持VQA、Caption、OCR、Grounding任务的训练。
-- **界面训练**：以界面的方式提供训练、推理、评测、量化的能力，完成大模型的全链路。
-- **插件化与拓展**：支持自定义模型和数据集拓展，支持对loss、metric、trainer、loss-scale、callback、optimizer等组件进行自定义。
-- 🍉 **工具箱能力**：不仅提供大模型和多模态大模型的训练支持，还涵盖其推理、评测、量化和部署全流程。
-- **推理加速**：支持PyTorch、vLLM、LmDeploy推理加速引擎，并提供OpenAI接口，为推理、部署和评测模块提供加速。
-- **模型评测**：以EvalScope作为评测后端，支持100+评测数据集对纯文本和多模态模型进行评测。
-- **模型量化**：支持AWQ、GPTQ和BNB的量化导出，导出的模型支持使用vLLM/LmDeploy推理加速，并支持继续训练。
+### 核心特性
 
-## 🎉 新闻
-- 🎁 2024.12.04: **SWIFT3.0**大版本更新. 请查看[发布说明和更改](https://swift.readthedocs.io/zh-cn/latest/Instruction/ReleaseNote3.0.html)。
-- 🎉 2024.08.12: SWIFT论文已经发布到arXiv上，可以点击[这里](https://arxiv.org/abs/2408.05517)阅读。
-- 🔥 2024.08.05: 支持使用[evalscope](https://github.com/modelscope/evalscope/)作为后端进行大模型和多模态模型的评测。
-- 🔥 2024.07.29: 支持使用[vllm](https://github.com/vllm-project/vllm), [lmdeploy](https://github.com/InternLM/lmdeploy)对大模型和多模态大模型进行推理加速，在infer/deploy/eval时额外指定`--infer_backend vllm/lmdeploy`即可。
-- 🔥 2024.07.24: 支持对多模态大模型进行人类偏好对齐训练，包括DPO/ORPO/SimPO/CPO/KTO/RM/PPO。
-- 🔥 2024.02.01: 支持Agent训练！训练算法源自这篇[论文](https://arxiv.org/pdf/2309.00986.pdf)。
+- **语音感知上下文剪枝**：动态过滤来自OCR的文本上下文，仅保留与语音内容直接相关的关键词
+- **跨模态上下文压缩**：使用语音驱动注意力池化（Speech-Driven Attention-based Pooling）将大量文本输入压缩为简洁的、与语音相关的上下文嵌入
+- **最先进的性能**：在 SlideSpeech 数据集上达到 7.71% 的词错误率（WER），在 LibriSpeech 数据集上达到 1.12% 的 WER，相比非上下文基线，在偏向关键词识别方面相对提升了 41.1%
+
+### 实验结果
+
+- **SlideSpeech**：WER 7.71%，B-WER 相比基线提升 41.1%
+- **LibriSpeech**：WER 1.12%
+- 在大量上下文输入条件下具有**鲁棒的可扩展性**
+
+### 识别示例
+
+下图展示了 SAP² 与之前方法在 SlideSpeech 测试集上的识别示例对比。红色文本表示专有名词的识别错误，绿色高亮文本展示了 SAP² 所做的修正。
+
+<p align="center">
+  <img src="asset/figure1.jpg" alt="识别示例" width="800"/>
+</p>
 
 ## 🛠️ 安装
-使用pip进行安装：
-```shell
-pip install ms-swift -U
-```
 
-从源代码安装：
-```shell
-# pip install git+https://github.com/modelscope/ms-swift.git
+本项目基于 [ms-swift](https://github.com/modelscope/ms-swift)。安装方法如下：
 
-git clone https://github.com/modelscope/ms-swift.git
-cd ms-swift
+```shell
+# 克隆仓库
+git clone https://github.com/jymh/SAP2-ASR.git
+cd SAP2-ASR
+
+# 创建 conda 环境
+conda env create -f environment.yml
+
+# 激活环境
+conda activate swift
+
+# 安装包
 pip install -e .
 ```
 
+**环境要求：**
+- Python >= 3.10
+- PyTorch >= 2.0
+- transformers >= 4.45
+- librosa（用于音频处理）
+
 ## 🚀 快速开始
 
-**10分钟**在单卡3090上对Qwen2.5-7B-Instruct进行自我认知微调：
+### 使用 SAP（语音驱动注意力池化）训练 SAP² 模型
 
-### 命令行
+以下示例展示如何在 SlideSpeech 数据集上使用 SAP 池化训练 SAP² 模型：
+
 ```shell
-# 22GB
-CUDA_VISIBLE_DEVICES=0 \
-swift sft \
-    --model Qwen/Qwen2.5-7B-Instruct \
-    --train_type lora \
-    --dataset 'AI-ModelScope/alpaca-gpt4-data-zh#500' \
-              'AI-ModelScope/alpaca-gpt4-data-en#500' \
-              'swift/self-cognition#500' \
-    --torch_dtype bfloat16 \
+# 使用 SAP 压缩进行多 GPU 训练
+NPROC_PER_NODE=8 CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 swift sft \
+    --model "/path/to/qwen2-audio-instruct" \
+    --model_type sap_qwen2_audio \
+    --dataset "/path/to/slidespeech/train.json" \
+    --val_dataset "/path/to/slidespeech/dev.json" \
+    --save_steps 1000 \
+    --save_total_limit 2 \
     --num_train_epochs 1 \
-    --per_device_train_batch_size 1 \
-    --per_device_eval_batch_size 1 \
-    --learning_rate 1e-4 \
+    --per_device_train_batch_size 32 \
+    --per_device_eval_batch_size 32 \
+    --max_length 4096 \
+    --output_dir "/path/to/output" \
+    --train_type lora \
+    --freeze_llm false \
+    --freeze_vit true \
+    --freeze_aligner false \
     --lora_rank 8 \
-    --lora_alpha 32 \
-    --target_modules all-linear \
-    --gradient_accumulation_steps 16 \
-    --eval_steps 50 \
-    --save_steps 50 \
-    --save_total_limit 5 \
-    --logging_steps 5 \
-    --max_length 2048 \
-    --output_dir output \
-    --system 'You are a helpful assistant.' \
-    --warmup_ratio 0.05 \
-    --dataloader_num_workers 4 \
-    --model_author swift \
-    --model_name swift-robot
+    --sap_window_size 2 \
+    --compressor_hidden_size 4096 \
+    --num_attention_heads 4 \
+    --deepspeed zero2
 ```
 
-训练完成后，使用以下命令对训练后的权重进行推理，这里的`--adapters`替换成训练生成的last checkpoint文件夹. 由于adapters文件夹中包含了训练的参数文件，因此不需要额外指定`--model`, `--system`.
+**关键参数：**
+- `--model_type sap_qwen2_audio`：使用支持 SAP 的 Qwen2-Audio 模型
+- `--sap_window_size 2`：语音驱动注意力池化的窗口大小
+- `--compressor_hidden_size 4096`：压缩器的隐藏层大小
+- `--num_attention_heads 4`：池化使用的注意力头数量
 
-```shell
-# 使用交互式命令行进行推理
-CUDA_VISIBLE_DEVICES=0 \
-swift infer \
-    --adapters output/vx-xxx/checkpoint-xxx \
-    --stream true \
-    --temperature 0 \
-    --max_new_tokens 2048
+### 使用 SAP² 模型进行推理
 
-# merge-lora并使用vLLM进行推理加速
-CUDA_VISIBLE_DEVICES=0 \
-swift infer \
-    --adapters output/vx-xxx/checkpoint-xxx \
-    --stream true \
-    --merge_lora true \
-    --infer_backend vllm \
-    --max_model_len 8192 \
-    --temperature 0 \
-    --max_new_tokens 2048
-```
+训练完成后，使用训练好的模型进行推理：
 
-### Web-UI
-
-Web-UI是基于gradio界面技术的**零门槛**训练、部署界面方案，具体可以查看[这里](https://swift.readthedocs.io/zh-cn/latest/GetStarted/Web-UI.html)。
-
-```shell
-swift web-ui
-```
-![image.png](./docs/resources/web-ui.png)
-
-### 使用Python
-ms-swift也支持使用python的方式进行训练和推理。下面给出训练和推理的**伪代码**，具体可以查看[这里](https://github.com/modelscope/ms-swift/tree/main/examples/notebook)。
-
-训练：
-```python
-# 获取模型和template，并加入可训练的LoRA模块
-model, tokenizer = get_model_tokenizer(model_id_or_path, ...)
-template = get_template(model.model_meta.template, tokenizer, ...)
-model = Swift.prepare_model(model, lora_config)
-
-# 下载并载入数据集，并将文本encode成tokens
-train_dataset, val_dataset = load_dataset(dataset_id_or_path, ...)
-train_dataset = EncodePreprocessor(template=template)(train_dataset, num_proc=num_proc)
-val_dataset = EncodePreprocessor(template=template)(val_dataset, num_proc=num_proc)
-
-# 进行训练
-trainer = Seq2SeqTrainer(
-    model=model,
-    args=training_args,
-    data_collator=template.data_collator,
-    train_dataset=train_dataset,
-    eval_dataset=val_dataset,
-    template=template,
-)
-trainer.train()
-```
-
-推理：
-```python
-# 使用原生pytorch引擎进行推理
-engine = PtEngine(model_id_or_path, adapters=[lora_checkpoint])
-infer_request = InferRequest(messages=[{'role': 'user', 'content': 'who are you?'}])
-request_config = RequestConfig(max_tokens=max_new_tokens, temperature=temperature)
-
-resp_list = engine.infer([infer_request], request_config)
-print(f'response: {resp_list[0].choices[0].message.content}')
-```
-
-## ✨ 如何使用
-
-这里给出使用ms-swift进行训练到部署到最简示例，具体可以查看[examples](https://github.com/modelscope/ms-swift/tree/main/examples).
-
-|   常用链接 |
-| ------ |
-|   [命令行参数](https://swift.readthedocs.io/zh-cn/latest/Instruction/%E5%91%BD%E4%BB%A4%E8%A1%8C%E5%8F%82%E6%95%B0.html)   |
-|   [支持的模型和数据集](https://swift.readthedocs.io/zh-cn/latest/Instruction/%E6%94%AF%E6%8C%81%E7%9A%84%E6%A8%A1%E5%9E%8B%E5%92%8C%E6%95%B0%E6%8D%AE%E9%9B%86.html)   |
-|   [自定义模型](https://swift.readthedocs.io/zh-cn/latest/Customization/%E8%87%AA%E5%AE%9A%E4%B9%89%E6%A8%A1%E5%9E%8B.html), [自定义数据集](https://swift.readthedocs.io/zh-cn/latest/Customization/%E8%87%AA%E5%AE%9A%E4%B9%89%E6%95%B0%E6%8D%AE%E9%9B%86.html)   |
-|   [大模型教程](https://github.com/modelscope/modelscope-classroom/tree/main/LLM-tutorial)   |
-
-### 训练
-
-预训练：
-```shell
-# 8*A100
-NPROC_PER_NODE=8 \
-CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 \
-swift pt \
-    --model Qwen/Qwen2.5-7B \
-    --dataset swift/chinese-c4 \
-    --streaming true \
-    --train_type full \
-    --deepspeed zero2 \
-    --output_dir output \
-    --max_steps 100000 \
-    ...
-```
-
-微调：
-```shell
-CUDA_VISIBLE_DEVICES=0 swift sft \
-    --model Qwen/Qwen2.5-7B-Instruct \
-    --dataset AI-ModelScope/alpaca-gpt4-data-zh \
-    --train_type lora \
-    --output_dir output \
-    ...
-```
-
-RLHF：
-```shell
-CUDA_VISIBLE_DEVICES=0 swift rlhf \
-    --rlhf_type dpo \
-    --model Qwen/Qwen2.5-7B-Instruct \
-    --dataset hjh0119/shareAI-Llama3-DPO-zh-en-emoji \
-    --train_type lora \
-    --output_dir output \
-    ...
-```
-
-
-### 推理
 ```shell
 CUDA_VISIBLE_DEVICES=0 swift infer \
-    --model Qwen/Qwen2.5-7B-Instruct \
-    --stream true \
-    --infer_backend pt \
-    --max_new_tokens 2048
-
-# LoRA
-CUDA_VISIBLE_DEVICES=0 swift infer \
-    --model Qwen/Qwen2.5-7B-Instruct \
-    --adapters swift/test_lora \
-    --stream true \
+    --adapters /path/to/checkpoint-xxx \
     --infer_backend pt \
     --temperature 0 \
-    --max_new_tokens 2048
+    --max_batch_size 4 \
+    --val_dataset /path/to/test.json \
+    --result_path /path/to/result.jsonl \
+    --stream false \
+    --sap_window_size 2 \
+    --compressor_hidden_size 4096 \
+    --num_attention_heads 4
 ```
 
-### 界面推理
-```shell
-CUDA_VISIBLE_DEVICES=0 swift app \
-    --model Qwen/Qwen2.5-7B-Instruct \
-    --stream true \
-    --infer_backend pt \
-    --max_new_tokens 2048 \
-    --lang zh
-```
+## ✨ 使用说明
 
-### 部署
-```shell
-CUDA_VISIBLE_DEVICES=0 swift deploy \
-    --model Qwen/Qwen2.5-7B-Instruct \
-    --infer_backend vllm
-```
+### 数据准备
 
-### 评测
-```shell
-CUDA_VISIBLE_DEVICES=0 swift eval \
-    --model Qwen/Qwen2.5-7B-Instruct \
-    --infer_backend lmdeploy \
-    --eval_dataset ARC_c
-```
+SAP² 方法要求上下文关键词（例如来自 OCR 文本）使用特殊标记 `<|startofcontext|>` 和 `<|endofcontext|>` 进行格式化。数据格式示例：
 
-### 量化
-```shell
-CUDA_VISIBLE_DEVICES=0 swift export \
-    --model Qwen/Qwen2.5-7B-Instruct \
-    --quant_bits 4 --quant_method awq \
-    --dataset AI-ModelScope/alpaca-gpt4-data-zh \
-    --output_dir Qwen2.5-7B-Instruct-AWQ
-```
-
-
-## 🏛 License
-
-本框架使用[Apache License (Version 2.0)](https://github.com/modelscope/modelscope/blob/master/LICENSE)进行许可。模型和数据集请查看原资源页面并遵守对应License。
-
-## 📎 引用
-
-```bibtex
-@misc{zhao2024swiftascalablelightweightinfrastructure,
-      title={SWIFT:A Scalable lightWeight Infrastructure for Fine-Tuning},
-      author={Yuze Zhao and Jintao Huang and Jinghan Hu and Xingjun Wang and Yunlin Mao and Daoze Zhang and Zeyinzi Jiang and Zhikai Wu and Baole Ai and Ang Wang and Wenmeng Zhou and Yingda Chen},
-      year={2024},
-      eprint={2408.05517},
-      archivePrefix={arXiv},
-      primaryClass={cs.CL},
-      url={https://arxiv.org/abs/2408.05517},
+```json
+{
+  "messages": [
+    {
+      "role": "user",
+      "content": "<audio>/path/to/audio.wav</audio>Transcribe speech to text according to keywords may appear in the utterance. Possible keywords are: <|startofcontext|>keyword1 keyword2 keyword3<|endofcontext|>"
+    },
+    {
+      "role": "assistant",
+      "content": "transcribed text"
+    }
+  ],
+  "audios": "/path/to/audio.wav"
 }
 ```
 
-## Star History
+您可以使用 `extract_predicted_keywords.py` 处理数据并添加上下文关键词。
 
-[![Star History Chart](https://api.star-history.com/svg?repos=modelscope/swift&type=Date)](https://star-history.com/#modelscope/ms-swift&Date)
+### 使用 SAP 压缩进行训练
+
+SAP（语音驱动注意力池化）机制使用语音驱动注意力池化压缩长上下文关键词：
+
+```shell
+swift sft \
+    --model_type sap_qwen2_audio \
+    --model "/path/to/qwen2-audio-instruct" \
+    --dataset "/path/to/dataset" \
+    --train_type lora \
+    --sap_window_size 2 \
+    --compressor_hidden_size 4096 \
+    --num_attention_heads 4 \
+    ...
+```
+
+### 评估
+
+推理完成后，您可以使用提供的评估脚本评估结果：
+
+```shell
+python evaluate_slidespeech_process.py --input_file /path/to/result.jsonl
+```
+
+## 🏗️ 模型架构
+
+下图展示了 SAP² 的整体架构：
+
+<p align="center">
+  <img src="asset/main_fig.jpg" alt="SAP² 模型架构" width="800"/>
+</p>
+
+核心实现位于 `swift/llm/model/sqp_models/modeling_sqp_qwen2audio.py`，扩展了 `Qwen2AudioForConditionalGeneration`，包含：
+
+- **`Qwen2AudioSAPPoolingLayer`**：实现 SAP（语音驱动注意力池化），基于语音特征压缩上下文关键词
+- **`SAP2Qwen2AudioForConditionalGeneration`**：将 SAP 压缩集成到 Qwen2-Audio 架构中的主模型类
+
+SAP 池化层使用语音嵌入和上下文嵌入之间的跨模态注意力来计算池化权重，能够高效压缩长上下文输入，同时保留与语音相关的信息。
+
+## 📎 引用
+
+如果您在研究中使用了 SAP²，请引用我们的论文：
+
+```bibtex
+@article{rong2025speechaware,
+  title={Speech-Aware Long Context Pruning and Integration for Contextualized Automatic Speech Recognition},
+  author={Rong, Yiming and Zhang, Yixin and Wang, Ziyi and Jiang, Deyang and Zhao, Yunlong and Wu, Haoran and Zhou, Shiyu and Xu, Bo},
+  journal={arXiv preprint arXiv:2511.11139},
+  year={2025}
+}
+```
+
+
+## 🏛 许可证
+
+本框架使用 [Apache License (Version 2.0)](https://github.com/modelscope/modelscope/blob/master/LICENSE) 进行许可。模型和数据集请查看原资源页面并遵守对应的许可证。
