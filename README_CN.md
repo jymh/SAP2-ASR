@@ -22,6 +22,7 @@
 ## 📖 目录
 - [简介](#-简介)
 - [安装](#%EF%B8%8F-安装)
+- [数据集](#-数据集)
 - [快速开始](#-快速开始)
 - [使用说明](#-使用说明)
 - [模型架构](#-模型架构)
@@ -76,6 +77,56 @@ pip install -e .
 - PyTorch >= 2.0
 - transformers >= 4.45
 - librosa（用于音频处理）
+
+## 📊 数据集
+
+本项目使用两个数据集进行评估：**SlideSpeech** 和 **LibriSpeech**。两个数据集都可以在 OpenSLR 找到，或者您可以从以下来源下载：
+
+### SlideSpeech
+
+SlideSpeech 是一个包含幻灯片的大规模音视频语料库，包含 1,705 个视频，超过 1,000 小时的音频，其中包括 473 小时的高质量转录语音。
+
+**下载方式：**
+1. **GitHub 仓库**：从 [https://github.com/Mashiro009/slidespeech_dl.git](https://github.com/Mashiro009/slidespeech_dl.git) 克隆官方下载脚本
+   ```shell
+   git clone https://github.com/Mashiro009/slidespeech_dl.git
+   cd slidespeech_dl
+   bash run.sh
+   ```
+
+2. **OpenSLR**：可在 OpenSLR 网站获取
+
+**数据集详情：**
+- 网站：[https://slidespeech.github.io/](https://slidespeech.github.io/)
+- 包含同步的幻灯片和 OCR 提取的文本上下文
+- 适用于上下文感知 ASR 评估
+
+### LibriSpeech
+
+LibriSpeech 是一个大规模英语朗读语音语料库，源自 LibriVox 项目的有声读物。
+
+**下载方式：**
+1. **Hugging Face Datasets**：使用 Hugging Face datasets 库直接加载
+   ```python
+   from datasets import load_dataset
+   dataset = load_dataset("openslr/librispeech_asr")
+   ```
+   或访问：[https://huggingface.co/datasets/openslr/librispeech_asr](https://huggingface.co/datasets/openslr/librispeech_asr)
+
+2. **OpenSLR**：可在 OpenSLR 网站获取
+
+**数据集详情：**
+- 包含约 1000 小时的 16kHz 英语朗读语音
+- 分为训练集（train-clean、train-other）、验证集和测试集
+- 广泛用于 ASR 系统基准测试
+
+**注意**：对于 LibriSpeech，我们遵循论文中的方法，为训练集和验证集动态构建偏置列表，使用 common5k 词汇表之外的单词和随机选择的干扰词。
+
+### 预处理数据集元数据
+
+我们在 Hugging Face 上提供了预处理好的数据集元数据，包含为 SAP² 格式化的上下文关键词训练数据。元数据包含来自 SlideSpeech 和 LibriSpeech 数据集的 109 万训练样本。
+
+**Hugging Face 数据集**：[https://huggingface.co/datasets/jymh/SAP2-ASR](https://huggingface.co/datasets/jymh/SAP2-ASR)
 
 ## 🚀 快速开始
 

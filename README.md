@@ -22,6 +22,7 @@
 ## 📖 Table of Contents
 - [Introduction](#-introduction)
 - [Installation](#%EF%B8%8F-installation)
+- [Datasets](#-datasets)
 - [Quick Start](#-quick-start)
 - [Usage](#-usage)
 - [Model Architecture](#-model-architecture)
@@ -76,6 +77,56 @@ pip install -e .
 - PyTorch >= 2.0
 - transformers >= 4.45
 - librosa (for audio processing)
+
+## 📊 Datasets
+
+This project uses two datasets for training and evaluation: **SlideSpeech** and **LibriSpeech**. Both datasets can be found on OpenSLR, or you can download them from the following sources:
+
+### SlideSpeech
+
+SlideSpeech is a large-scale audio-visual corpus enriched with slides, containing 1,705 videos with 1,000+ hours of audio, including 473 hours of high-quality transcribed speech.
+
+**Download Options:**
+1. **GitHub Repository**: Clone the official download scripts from [https://github.com/Mashiro009/slidespeech_dl.git](https://github.com/Mashiro009/slidespeech_dl.git)
+   ```shell
+   git clone https://github.com/Mashiro009/slidespeech_dl.git
+   cd slidespeech_dl
+   bash run.sh
+   ```
+
+2. **OpenSLR**: Available on OpenSLR website
+
+**Dataset Details:**
+- Website: [https://slidespeech.github.io/](https://slidespeech.github.io/)
+- Contains synchronized slides with OCR-derived textual contexts
+- Suitable for contextualized ASR evaluation
+
+### LibriSpeech
+
+LibriSpeech is a large-scale corpus of read English speech, derived from audiobooks in the LibriVox project.
+
+**Download Options:**
+1. **Hugging Face Datasets**: Load directly using the Hugging Face datasets library
+   ```python
+   from datasets import load_dataset
+   dataset = load_dataset("openslr/librispeech_asr")
+   ```
+   Or visit: [https://huggingface.co/datasets/openslr/librispeech_asr](https://huggingface.co/datasets/openslr/librispeech_asr)
+
+2. **OpenSLR**: Available on OpenSLR website
+
+**Dataset Details:**
+- Contains approximately 1000 hours of 16kHz read English speech
+- Split into training (train-clean, train-other), validation, and test sets
+- Widely used benchmark for ASR systems
+
+**Note**: For LibriSpeech, we follow the approach in the paper to dynamically construct biasing lists for training and validation sets, using words outside the common5k vocabulary with randomly selected distractors.
+
+### Preprocessed Dataset Metadata
+
+We provide preprocessed dataset metadata on Hugging Face containing training data with contextual keywords formatted for SAP². The metadata includes 1.09M training samples from both SlideSpeech and LibriSpeech datasets.
+
+**Hugging Face Dataset**: [https://huggingface.co/datasets/jymh/SAP2-ASR](https://huggingface.co/datasets/jymh/SAP2-ASR)
 
 ## 🚀 Quick Start
 
