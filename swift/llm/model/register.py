@@ -460,8 +460,8 @@ def get_model_tokenizer(
     kwargs['attn_impl'] = attn_impl
     kwargs['rope_scaling'] = rope_scaling
     
-    if kwargs.get("qgc_window_size", None) is not None:
-        model_kwargs["qgc_window_size"] = kwargs["qgc_window_size"]
+    if kwargs.get("sap_window_size", None) is not None:
+        model_kwargs["sap_window_size"] = kwargs["sap_window_size"]
     if kwargs.get("compressor_hidden_size", None) is not None:
         model_kwargs["compressor_hidden_size"] = kwargs["compressor_hidden_size"]
     if kwargs.get("num_attention_heads", None) is not None:

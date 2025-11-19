@@ -115,8 +115,8 @@ class InferArguments(MergeArguments, VllmArguments, LmdeployArguments, BaseArgum
     # for pt engine
     max_batch_size: int = 1
     
-    # # for QGC-Qwen2-Audio by Rong Yiming
-    qgc_window_size: Optional[int] = None
+    # # for SAP2-Qwen2-Audio by Rong Yiming
+    sap_window_size: Optional[int] = None
     compressor_hidden_size: Optional[int] = None
     num_attention_heads: Optional[int] = None
     

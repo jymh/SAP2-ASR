@@ -26,7 +26,7 @@ raw_test_file=${PROJECT_DIR}/data/context_filter/slidespeech_test_organizedocr_f
 asr_eval_dataset=${PROJECT_DIR}/data/add_context_token/slidespeech_L95_organizedocr_filtered_train/test_from_window_size2_no_param.json
 
 
-qgc_window_size=2
+sap_window_size=2
 
 mkdir ${filter_adapter_dir}/${result_dir}
 result_file=${filter_adapter_dir}/${result_dir}/test.jsonl
@@ -39,7 +39,7 @@ result_file=${filter_adapter_dir}/${result_dir}/test.jsonl
 #     --val_dataset ${filter_eval_dataset} \
 #     --result_path ${result_file} \
 #     --stream true \
-#     --qgc_window_size ${qgc_window_size} \
+#     --sap_window_size ${sap_window_size} \
 #     --compressor_hidden_size 4096 \
 #     --num_attention_heads 4
 
@@ -59,7 +59,7 @@ result_file=${asr_adapter_dir}/${result_dir}/test.jsonl
 #     --val_dataset ${asr_eval_dataset} \
 #     --result_path ${result_file} \
 #     --stream false \
-#     --qgc_window_size ${qgc_window_size} \
+#     --sap_window_size ${sap_window_size} \
 #     --compressor_hidden_size 4096 \
 #     --num_attention_heads 4
 

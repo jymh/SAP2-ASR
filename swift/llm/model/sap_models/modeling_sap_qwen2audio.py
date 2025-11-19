@@ -30,7 +30,7 @@ def fix_window_size_pooling(hidden_states, attention_mask, weights):
     
     return pooling_hidden_states, pooling_attention_mask
 
-class Qwen2AudioQGCPoolingLayer(nn.Module):
+class Qwen2AudioSAP2PoolingLayer(nn.Module):
     def __init__(self, compressor_hidden_size, num_attention_heads, **kwargs):
         super().__init__()
         self.hidden_size = compressor_hidden_size
@@ -94,12 +94,12 @@ class Qwen2AudioQGCPoolingLayer(nn.Module):
 
 
 
-class QGCQwen2AudioForConditionalGeneration(Qwen2AudioForConditionalGeneration):
-    def __init__(self, config, qgc_window_size=None, **kwargs):
+class SAP2Qwen2AudioForConditionalGeneration(Qwen2AudioForConditionalGeneration):
+    def __init__(self, config, sap_window_size=None, **kwargs):
         super().__init__(config)
         
-        self.qgc_pooling_layer = Qwen2AudioQGCPoolingLayer(**kwargs)
-        self.qgc_window_size = qgc_window_size
+        self.sap2_pooling_layer = Qwen2AudioSAP2PoolingLayer(**kwargs)
+        self.sap_window_size = sap_window_size
         
         self.audio_bos_token_id = 151647  # <|audio_bos|>
         self.audio_eos_token_id = 151648  # <|audio_eos|>
@@ -396,7 +396,7 @@ class QGCQwen2AudioForConditionalGeneration(Qwen2AudioForConditionalGeneration):
                 prompt_start_positions = torch.where(input_ids == self.context_bos_token_id)[1].long().to(input_ids.device) + 1
                 prompt_eos_positions = torch.where(input_ids == self.context_eos_token_id)[1].long().to(input_ids.device)
 
-                # Prepare input for qgc compression, only compress context prompts.
+                # Prepare input for sap compression, only compress context prompts.
                 input_ids_before_prompt = [input_ids[i, :prompt_start_positions[i]] for i in range(batch_size)]
                 input_ids_prompt = [input_ids[i, prompt_start_positions[i]:prompt_eos_positions[i]] for i in range(batch_size)]
                 input_ids_after_prompt = [input_ids[i, prompt_eos_positions[i]:] for i in range(batch_size)]
@@ -457,15 +457,15 @@ class QGCQwen2AudioForConditionalGeneration(Qwen2AudioForConditionalGeneration):
                 ) < audio_output_lengths.unsqueeze(1)
                 
                 
-                # qgc compress
-                qgc_inputs_embeds, qgc_attention_mask = self.qgc_pooling_layer(audio_features, padded_inputs_embeds_prompt, audio_features_mask, prompt_attention_mask, window_size=self.qgc_window_size)
-                qgc_inputs_embeds, qgc_attention_mask = qgc_inputs_embeds.to(inputs_embeds.device), qgc_attention_mask.to(inputs_embeds.device)
-                qgc_prompt_lengths = qgc_attention_mask.sum(dim=-1).to(inputs_embeds.device)     
+                # sap compress
+                sap_inputs_embeds, sap_attention_mask = self.sap2_pooling_layer(audio_features, padded_inputs_embeds_prompt, audio_features_mask, prompt_attention_mask, window_size=self.sap_window_size)
+                sap_inputs_embeds, sap_attention_mask = sap_inputs_embeds.to(inputs_embeds.device), sap_attention_mask.to(inputs_embeds.device)
+                sap_prompt_lengths = sap_attention_mask.sum(dim=-1).to(inputs_embeds.device)     
                      
                 before_prompt_lengths = torch.tensor([seq.size(0) for seq in input_ids_before_prompt], device=inputs_embeds.device)
                 after_prompt_lengths = torch.tensor([seq.size(0) for seq in input_ids_after_prompt], device=inputs_embeds.device)
 
-                final_lengths = before_prompt_lengths + after_prompt_lengths + qgc_prompt_lengths
+                final_lengths = before_prompt_lengths + after_prompt_lengths + sap_prompt_lengths
                 max_final_length = final_lengths.max().item()
                 
                 final_input_embeds = torch.zeros(batch_size, max_final_length, inputs_embeds.size(2), dtype=inputs_embeds.dtype, device=inputs_embeds.device)
@@ -481,17 +481,17 @@ class QGCQwen2AudioForConditionalGeneration(Qwen2AudioForConditionalGeneration):
                     final_attention_mask[i, :before_prompt_lengths[i]] = attention_mask_before_prompt[i]
                     final_input_ids[i, :before_prompt_lengths[i]] = input_ids_before_prompt[i]
                     
-                    final_input_embeds[i, before_prompt_lengths[i]:before_prompt_lengths[i] + qgc_prompt_lengths[i]] = qgc_inputs_embeds[i][:qgc_prompt_lengths[i]]
-                    final_attention_mask[i, before_prompt_lengths[i]:before_prompt_lengths[i] + qgc_prompt_lengths[i]] = qgc_attention_mask[i][:qgc_prompt_lengths[i]]
+                    final_input_embeds[i, before_prompt_lengths[i]:before_prompt_lengths[i] + sap_prompt_lengths[i]] = sap_inputs_embeds[i][:sap_prompt_lengths[i]]
+                    final_attention_mask[i, before_prompt_lengths[i]:before_prompt_lengths[i] + sap_prompt_lengths[i]] = sap_attention_mask[i][:sap_prompt_lengths[i]]
                     
-                    final_input_embeds[i, before_prompt_lengths[i] + qgc_prompt_lengths[i]:before_prompt_lengths[i] + qgc_prompt_lengths[i] + inputs_embeds_after_prompt[i].size(0)] = inputs_embeds_after_prompt[i]
-                    final_attention_mask[i, before_prompt_lengths[i] + qgc_prompt_lengths[i]:before_prompt_lengths[i] + qgc_prompt_lengths[i] + attention_mask_after_prompt[i].size(0)] = attention_mask_after_prompt[i]
-                    final_input_ids[i, before_prompt_lengths[i] + qgc_prompt_lengths[i]:before_prompt_lengths[i] + qgc_prompt_lengths[i] + input_ids_after_prompt[i].size(0)] = input_ids_after_prompt[i]
+                    final_input_embeds[i, before_prompt_lengths[i] + sap_prompt_lengths[i]:before_prompt_lengths[i] + sap_prompt_lengths[i] + inputs_embeds_after_prompt[i].size(0)] = inputs_embeds_after_prompt[i]
+                    final_attention_mask[i, before_prompt_lengths[i] + sap_prompt_lengths[i]:before_prompt_lengths[i] + sap_prompt_lengths[i] + attention_mask_after_prompt[i].size(0)] = attention_mask_after_prompt[i]
+                    final_input_ids[i, before_prompt_lengths[i] + sap_prompt_lengths[i]:before_prompt_lengths[i] + sap_prompt_lengths[i] + input_ids_after_prompt[i].size(0)] = input_ids_after_prompt[i]
 
                     if labels is not None:
                         final_labels[i, :before_prompt_lengths[i]] = labels_before_prompt[i]
-                        final_labels[i, before_prompt_lengths[i]:before_prompt_lengths[i] + qgc_prompt_lengths[i]] = torch.full((qgc_prompt_lengths[i],), fill_value=-100, dtype=final_labels.dtype, device=final_labels.device)
-                        final_labels[i, before_prompt_lengths[i] + qgc_prompt_lengths[i]:before_prompt_lengths[i] + qgc_prompt_lengths[i] + labels_after_prompt[i].size(0)] = labels_after_prompt[i]
+                        final_labels[i, before_prompt_lengths[i]:before_prompt_lengths[i] + sap_prompt_lengths[i]] = torch.full((sap_prompt_lengths[i],), fill_value=-100, dtype=final_labels.dtype, device=final_labels.device)
+                        final_labels[i, before_prompt_lengths[i] + sap_prompt_lengths[i]:before_prompt_lengths[i] + sap_prompt_lengths[i] + labels_after_prompt[i].size(0)] = labels_after_prompt[i]
 
                 
                 inputs_embeds, attention_mask, labels, position_ids, _ = self._merge_input_ids_with_audio_features(
@@ -584,7 +584,7 @@ class QGCQwen2AudioForConditionalGeneration(Qwen2AudioForConditionalGeneration):
             #     attention_mask = attention_mask[:, -(cache_length + input_ids.shape[1]) :]
             
             # TODO: consider more complicated scenarios
-            # With QGC, sequence length of inputs_embeds is not equal to input_ids after the first forward. Only consider the last token.
+            # With SAP, sequence length of inputs_embeds is not equal to input_ids after the first forward. Only consider the last token.
             input_ids = input_ids[:, input_ids.shape[1] - 1 :]
 
         position_ids = kwargs.get("position_ids", None)

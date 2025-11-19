@@ -126,8 +126,8 @@ class TrainArguments(TorchAccArguments, TunerArguments, Seq2SeqTrainingOverrideA
     optimizer: Optional[str] = None
     metric: Optional[str] = None
     
-    # # for QGC-Qwen2-Audio by Rong Yiming
-    qgc_window_size: Optional[int] = None
+    # # for SAP2-Qwen2-Audio by Rong Yiming
+    sap_window_size: Optional[int] = None
     compressor_hidden_size: Optional[int] = None
     num_attention_heads: Optional[int] = None
 
@@ -240,9 +240,9 @@ class TrainArguments(TorchAccArguments, TunerArguments, Seq2SeqTrainingOverrideA
         kwargs['model_revision'] = model_revision or self.model_revision
 
         model_kwargs = {}
-        # for qgc
-        if self.qgc_window_size is not None:
-            kwargs["qgc_window_size"] = self.qgc_window_size
+        # for sap
+        if self.sap_window_size is not None:
+            kwargs["sap_window_size"] = self.sap_window_size
         if self.compressor_hidden_size is not None:
             kwargs["compressor_hidden_size"] = self.compressor_hidden_size
         if self.num_attention_heads is not None:

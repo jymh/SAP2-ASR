@@ -142,8 +142,8 @@ def prepare_adapter(args, model, adapters=None):
 
 def prepare_model_template(args, **kwargs):
     kwargs = {}
-    if args.qgc_window_size is not None:
-        kwargs["qgc_window_size"] = args.qgc_window_size
+    if args.sap_window_size is not None:
+        kwargs["sap_window_size"] = args.sap_window_size
     if args.compressor_hidden_size is not None:
         kwargs["compressor_hidden_size"] = args.compressor_hidden_size
     if args.num_attention_heads is not None:

@@ -23,13 +23,13 @@
 # superdir="/data/rym/output/slidespeech_L95_lora_3slidesocr_en_instruction/qwen2-audio-7b-instruct/v2-20241201-021657/checkpoint-20066-merged/infer_result/"
 # superdir="/data/rym/output/slidespeech_L95_lora_organizedocr/qwen2-audio-7b-instruct/v0-20241208-193552/checkpoint-14899-merged/infer_result/"
 # superdir="/data/rym/output/slidespeech_L95_lora_raw/qwen2-audio-7b-instruct/v0-20241210-084331/checkpoint-15050-merged/infer_result/"
-# superdir="/data/rym/output/slidespeech_L95_lora_5slidesocr_en_instruction/qgc-qwen2-audio-7b-instruct/v2-20241211-004321/checkpoint-30098-merged/infer_result/"
-# superdir="/data/rym/output/slidespeech_L95_lora_5slides_multitask_train_en_instruction/qgc-qwen2-audio-7b-instruct/v1-20241211-170945/checkpoint-30099-merged/infer_result/"
-# superdir="/data/rym/output/slidespeech_L95_lora_5slides_multitask_train_en_instruction/qgc-qwen2-audio-7b-instruct/v2-20241212-120605/checkpoint-22000-merged/infer_result/"
-# superdir="/data/rym/output/slidespeech_L95_lora_5slidesocr_en_instruction/qgc-qwen2-audio-7b-instruct/v0-20241214-114047/checkpoint-30099-merged/infer_result/"
-# superdir="/data/rym/output/slidespeech_L95_lora_5slides_multitask_train_en_instruction/qgc-qwen2-audio-7b-instruct/v4-20241216-113603/checkpoint-15049-merged/infer_result/
-# superdir="/data/rym/output/slidespeech_L95_lora_5slidesocr_en_instruction/qgc-qwen2-audio-7b-instruct/v1-20241216-143511/checkpoint-30099-merged/infer_result/"
-superdir="/data/rym/output/slidespeech_L95_lora_5slides_multitask_train_en_instruction/qgc-qwen2-audio-7b-instruct/v5-20241216-214322/checkpoint-30098-merged/infer_result/"
+# superdir="/data/rym/output/slidespeech_L95_lora_5slidesocr_en_instruction/sap-qwen2-audio-7b-instruct/v2-20241211-004321/checkpoint-30098-merged/infer_result/"
+# superdir="/data/rym/output/slidespeech_L95_lora_5slides_multitask_train_en_instruction/sap-qwen2-audio-7b-instruct/v1-20241211-170945/checkpoint-30099-merged/infer_result/"
+# superdir="/data/rym/output/slidespeech_L95_lora_5slides_multitask_train_en_instruction/sap-qwen2-audio-7b-instruct/v2-20241212-120605/checkpoint-22000-merged/infer_result/"
+# superdir="/data/rym/output/slidespeech_L95_lora_5slidesocr_en_instruction/sap-qwen2-audio-7b-instruct/v0-20241214-114047/checkpoint-30099-merged/infer_result/"
+# superdir="/data/rym/output/slidespeech_L95_lora_5slides_multitask_train_en_instruction/sap-qwen2-audio-7b-instruct/v4-20241216-113603/checkpoint-15049-merged/infer_result/
+# superdir="/data/rym/output/slidespeech_L95_lora_5slidesocr_en_instruction/sap-qwen2-audio-7b-instruct/v1-20241216-143511/checkpoint-30099-merged/infer_result/"
+superdir="/data/rym/output/slidespeech_L95_lora_5slides_multitask_train_en_instruction/sap-qwen2-audio-7b-instruct/v5-20241216-214322/checkpoint-30098-merged/infer_result/"
 
 python $HOME/Projects/SLAM-LLM/src/slam_llm/utils/whisper_tn.py ${superdir}/test.ref ${superdir}/test.ref.proc
 python $HOME/Projects/SLAM-LLM/src/slam_llm/utils/whisper_tn.py ${superdir}/test.hyp ${superdir}/test.hyp.proc

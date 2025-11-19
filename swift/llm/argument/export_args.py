@@ -53,8 +53,8 @@ class ExportArguments(MergeArguments, BaseArguments):
     # compat
     to_peft_format: bool = False
     
-    # # for QGC-Qwen2-Audio by Rong Yiming
-    qgc_window_size: Optional[int] = None
+    # # for SAP2-Qwen2-Audio by Rong Yiming
+    sap_window_size: Optional[int] = None
     compressor_hidden_size: Optional[int] = None
     num_attention_heads: Optional[int] = None
 

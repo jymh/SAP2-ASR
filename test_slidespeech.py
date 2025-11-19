@@ -191,7 +191,7 @@ if __name__=="__main__":
     # model_path = pathlib.Path("/data/rym/output/slidespeech_L95_lora_3slidesocr_en_instruction/qwen2-audio-7b-instruct/v2-20241201-021657/checkpoint-20066")
     # eval_dataset = "/data/rym/Projects/ms-swift/data/slidespeech_L95_3slidesocr_en_instruction/test.json"
     
-    # model_path = pathlib.Path("/data/rym/output/slidespeech_L95_lora_5slidesocr_en_instruction/qgc-qwen2-audio-7b-instruct/v0-20241203-222149/checkpoint-30098")
+    # model_path = pathlib.Path("/data/rym/output/slidespeech_L95_lora_5slidesocr_en_instruction/sap-qwen2-audio-7b-instruct/v0-20241203-222149/checkpoint-30098")
     # eval_dataset = "data/rym/Projects/ms-swift/data/slidespeech_L95_5slidesocr_en_instruction/test.json"
     
     # model_path = pathlib.Path("/data/rym/output/slidespeech_L95_lora_organizedocr/qwen2-audio-7b-instruct/v0-20241208-193552/checkpoint-14899")
@@ -200,26 +200,26 @@ if __name__=="__main__":
     # model_path = pathlib.Path("/data/rym/output/slidespeech_L95_lora_raw/qwen2-audio-7b-instruct/v0-20241210-084331/checkpoint-15050")
     # eval_dataset = "/data/rym/Projects/ms-swift/data/slidespeech_L95_raw/test.json"
     
-    # model_path = pathlib.Path("/data/rym/output/slidespeech_L95_lora_5slidesocr_en_instruction/qgc-qwen2-audio-7b-instruct/v2-20241211-004321/checkpoint-30098")
+    # model_path = pathlib.Path("/data/rym/output/slidespeech_L95_lora_5slidesocr_en_instruction/sap-qwen2-audio-7b-instruct/v2-20241211-004321/checkpoint-30098")
     # eval_dataset = "/data/rym/Projects/ms-swift/data/add_context_token/slidespeech_L95_5slidesocr_en_instruction/test.json"
     # eval_dataset = "/data/rym/Projects/ms-swift/data/add_context_token/slidespeech_L95_5slidesocr_en_instruction/train_for_test_remain.json"
     
-    # model_path = pathlib.Path("/data/rym/output/slidespeech_L95_lora_5slides_multitask_train_en_instruction/qgc-qwen2-audio-7b-instruct/v1-20241211-170945/checkpoint-30099")
+    # model_path = pathlib.Path("/data/rym/output/slidespeech_L95_lora_5slides_multitask_train_en_instruction/sap-qwen2-audio-7b-instruct/v1-20241211-170945/checkpoint-30099")
     # eval_dataset = "/data/rym/Projects/ms-swift/data/add_context_token/slidespeech_L95_5slides_multitask_train_en_instruction/test.json"
     
-    # model_path = pathlib.Path("/data/rym/output/slidespeech_L95_lora_5slides_multitask_train_en_instruction/qgc-qwen2-audio-7b-instruct/v2-20241212-120605/checkpoint-22000")
+    # model_path = pathlib.Path("/data/rym/output/slidespeech_L95_lora_5slides_multitask_train_en_instruction/sap-qwen2-audio-7b-instruct/v2-20241212-120605/checkpoint-22000")
     # eval_dataset = "/data/rym/Projects/ms-swift/data/add_context_token/slidespeech_L95_5slides_multitask_train_en_instruction/test.json"
     
-    # model_path = pathlib.Path("/data/rym/output/slidespeech_L95_lora_5slidesocr_en_instruction/qgc-qwen2-audio-7b-instruct/v0-20241214-114047/checkpoint-30099")
+    # model_path = pathlib.Path("/data/rym/output/slidespeech_L95_lora_5slidesocr_en_instruction/sap-qwen2-audio-7b-instruct/v0-20241214-114047/checkpoint-30099")
     # eval_dataset = "/data/rym/Projects/ms-swift/data/add_context_token/slidespeech_L95_5slidesocr_en_instruction/test.json"
         
-    # model_path = pathlib.Path("/data/rym/output/slidespeech_L95_lora_5slides_multitask_train_en_instruction/qgc-qwen2-audio-7b-instruct/v4-20241216-113603/checkpoint-15049")
+    # model_path = pathlib.Path("/data/rym/output/slidespeech_L95_lora_5slides_multitask_train_en_instruction/sap-qwen2-audio-7b-instruct/v4-20241216-113603/checkpoint-15049")
     # eval_dataset = "/data/rym/Projects/ms-swift/data/add_context_token/slidespeech_L95_5slides_multitask_train_en_instruction/test.json"
     
-    # model_path = pathlib.Path("/data/rym/output/slidespeech_L95_lora_5slidesocr_en_instruction/qgc-qwen2-audio-7b-instruct/v1-20241216-143511/checkpoint-30099")
+    # model_path = pathlib.Path("/data/rym/output/slidespeech_L95_lora_5slidesocr_en_instruction/sap-qwen2-audio-7b-instruct/v1-20241216-143511/checkpoint-30099")
     # eval_dataset = "/data/rym/Projects/ms-swift/data/add_context_token/slidespeech_L95_5slidesocr_en_instruction/test.json" 
     
-    model_path = pathlib.Path("/data/rym/output/slidespeech_L95_lora_5slides_multitask_train_en_instruction/qgc-qwen2-audio-7b-instruct/v5-20241216-214322/checkpoint-30098")
+    model_path = pathlib.Path("/data/rym/output/slidespeech_L95_lora_5slides_multitask_train_en_instruction/sap-qwen2-audio-7b-instruct/v5-20241216-214322/checkpoint-30098")
     eval_dataset = "/data/rym/Projects/ms-swift/data/add_context_token/slidespeech_L95_5slides_multitask_train_en_instruction/test.json"
     
     if use_lora:
@@ -232,7 +232,7 @@ if __name__=="__main__":
             #             "--ckpt", str(original_ckpt_dir),
             #             "--merge_lora", "true"])
             result = subprocess.run(["swift", "export", 
-                        "--model_id_or_path", "/data/rym/models/qgc-qwen2-audio-instruct",
+                        "--model_id_or_path", "/data/rym/models/sap-qwen2-audio-instruct",
                         "--ckpt", str(original_ckpt_dir),
                         "--merge_lora", "true",
                         "--compressor_hidden_size", "4096",

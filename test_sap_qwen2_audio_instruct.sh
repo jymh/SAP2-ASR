@@ -18,7 +18,7 @@ result_file=${adapter_dir}/test.jsonl
 #     --val_dataset ${eval_dataset} \
 #     --result_path ${result_file} \
 #     --stream false \
-#     --qgc_window_size 2 \
+#     --sap_window_size 2 \
 #     --compressor_hidden_size 4096 \
 #     --num_attention_heads 4
 
